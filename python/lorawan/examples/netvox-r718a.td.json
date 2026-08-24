@@ -1,0 +1,162 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@type": "Thing",
+  "id": "urn:dev:netvox:r718a",
+  "title": "netvox_r718a",
+  "description": "Netvox R718A Temperature and Humidity Sensor for Low Temperature Environment.",
+  "securityDefinitions": {
+    "otaa_sc": {
+      "scheme": "apikey",
+      "in": "uri",
+      "name": "appKey",
+      "description": "LoRaWAN OTAA AppKey (root key). Injected at runtime by the Servient; never stored in this TD."
+    }
+  },
+  "security": "otaa_sc",
+  "base": "lorawan://0000000000000000/{appKey}/device",
+  "lorav:devEUI": "0000000000000000",
+  "lorav:joinEUI": "0000000000000000",
+  "lorav:macVersion": "1.0.2",
+  "schema:brand": "Netvox",
+  "schema:model": "R718A",
+  "lorav:region": "EU868",
+  "lorav:frequencyPlan": "EU_863_870_TTN",
+  "lorav:payloadLayout": "ports",
+  "events": {
+    "reportType": {
+      "title": "fPort 6 report type",
+      "description": "Discriminator byte for fPort 6 uplinks. 0 = startup version report, 1 = periodic status report.",
+      "data": {
+        "type": "integer"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:fPort": 6,
+          "lorav:byteOffset": 2,
+          "lorav:wireType": "xsd:unsignedByte"
+        }
+      ]
+    },
+    "batteryVoltage": {
+      "title": "Battery voltage",
+      "description": "Battery voltage in volts (fPort 6, reportType 1). Carried in bits 0-6 of byte 3 as deci-volts; bit 7 is the low-battery flag (see lowBattery). The official codec appends a '(low battery)' string suffix when that flag is set -- not representable in this vocabulary, so it is exposed only as the separate lowBattery property.",
+      "data": {
+        "type": "number",
+        "unit": "V"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:fPort": 6,
+          "lorav:slot": 0,
+          "lorav:byteOffset": 3,
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:bitmask": "0x7F",
+          "lorav:divisor": 10,
+          "lorav:presentWhen": {
+            "field": "reportType",
+            "value": 1
+          }
+        }
+      ]
+    },
+    "lowBattery": {
+      "title": "Low battery flag",
+      "description": "Low-battery indicator carried in bit 7 of byte 3 (fPort 6, reportType 1); 1 = low battery.",
+      "data": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:fPort": 6,
+          "lorav:slot": 1,
+          "lorav:byteOffset": 3,
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:bitmask": "0x80",
+          "lorav:presentWhen": {
+            "field": "reportType",
+            "value": 1
+          }
+        }
+      ]
+    },
+    "temperature": {
+      "title": "Temperature",
+      "description": "Measured temperature (fPort 6, reportType 1), signed big-endian hundredths of a degree Celsius.",
+      "data": {
+        "type": "number",
+        "unit": "Cel"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:fPort": 6,
+          "lorav:slot": 2,
+          "lorav:byteOffset": 4,
+          "lorav:wireType": "xsd:short",
+          "lorav:divisor": 100,
+          "lorav:presentWhen": {
+            "field": "reportType",
+            "value": 1
+          }
+        }
+      ]
+    },
+    "humidity": {
+      "title": "Relative humidity",
+      "description": "Relative humidity (fPort 6, reportType 1), unsigned big-endian hundredths of a percent.",
+      "data": {
+        "type": "number",
+        "unit": "%RH"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:fPort": 6,
+          "lorav:slot": 3,
+          "lorav:byteOffset": 6,
+          "lorav:wireType": "xsd:unsignedShort",
+          "lorav:divisor": 100,
+          "lorav:presentWhen": {
+            "field": "reportType",
+            "value": 1
+          }
+        }
+      ]
+    }
+  },
+  "version": {
+    "model": "2",
+    "instance": "10"
+  }
+}

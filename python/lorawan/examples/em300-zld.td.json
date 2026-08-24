@@ -1,0 +1,135 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@type": "Thing",
+  "id": "urn:dev:milesight_em300_zld",
+  "title": "milesight em300 zld",
+  "securityDefinitions": {
+    "otaa_sc": {
+      "scheme": "apikey",
+      "in": "uri",
+      "name": "appKey",
+      "description": "LoRaWAN OTAA AppKey (root key). Injected at runtime by the Servient; never stored in this TD."
+    }
+  },
+  "security": "otaa_sc",
+  "base": "lorawan://0000000000000000/{appKey}/device",
+  "lorav:devEUI": "0000000000000000",
+  "lorav:joinEUI": "0000000000000000",
+  "lorav:macVersion": "1.0.2",
+  "schema:brand": "Milesight",
+  "schema:model": "EM300-ZLD",
+  "lorav:region": "EU868",
+  "lorav:frequencyPlan": "EU_863_870_TTN",
+  "lorav:payloadLayout": "tlv",
+  "events": {
+    "battery": {
+      "data": {
+        "type": "integer"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            1,
+            117
+          ],
+          "lorav:wireType": "u8"
+        }
+      ]
+    },
+    "temperature": {
+      "data": {
+        "type": "number"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            3,
+            103
+          ],
+          "lorav:wireType": "s16",
+          "lorav:endian": "little",
+          "lorav:divisor": 10
+        }
+      ]
+    },
+    "humidity": {
+      "data": {
+        "type": "number"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            4,
+            104
+          ],
+          "lorav:wireType": "u8",
+          "lorav:divisor": 2
+        }
+      ]
+    },
+    "leakage_status": {
+      "data": {
+        "type": "string",
+        "oneOf": [
+          {
+            "const": 0,
+            "title": "normal"
+          },
+          {
+            "const": 1,
+            "title": "leak"
+          }
+        ]
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            5,
+            0
+          ],
+          "lorav:wireType": "u8"
+        }
+      ]
+    }
+  },
+  "lorav:tagFields": [
+    {
+      "name": "channel_id",
+      "type": "u8"
+    },
+    {
+      "name": "channel_type",
+      "type": "u8"
+    }
+  ],
+  "version": {
+    "model": "1",
+    "instance": "1"
+  }
+}

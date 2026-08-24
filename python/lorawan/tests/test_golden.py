@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from .conftest import EXAMPLES_DIR, REPO_ROOT
+from .conftest import REPO_ROOT
 from .snapshot import build_snapshot
 
 GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "snapshot.json"
@@ -24,13 +24,6 @@ GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "snapshot.json"
 pytestmark = pytest.mark.skipif(
     not GOLDEN_PATH.exists(),
     reason="no golden snapshot recorded; run `python -m scripts.update_golden`",
-)
-
-#: The curated examples are mirrored from upstream, so the parts of the snapshot
-#: built from them are only comparable once they are present on disk.
-_EXAMPLES_MISSING = pytest.mark.skipif(
-    not any(EXAMPLES_DIR.glob("*.td.json")),
-    reason="curated examples not synced; run `uv run sync-examples`",
 )
 
 
@@ -57,13 +50,11 @@ def current() -> dict:
     return json.loads(json.dumps(build_snapshot(), default=repr))
 
 
-@_EXAMPLES_MISSING
 def test_curated_payload_schemas_unchanged(golden, current):
     """Every curated example must still convert to byte-identical schema."""
     assert current["payload_schemas"] == golden["payload_schemas"]
 
 
-@_EXAMPLES_MISSING
 @pytest.mark.parametrize("case_id", _recorded_case_ids())
 def test_decoded_vector_unchanged(golden, current, case_id):
     """Each test vector decodes to exactly the values recorded before.

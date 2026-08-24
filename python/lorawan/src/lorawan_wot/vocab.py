@@ -280,10 +280,9 @@ def uses_withdrawn_vocabulary(td: dict[str, Any]) -> bool:
     """Return whether ``td`` still speaks the pre-0.3.0 dialect.
 
     True for a Thing Description that keeps uplinks under ``properties`` or that
-    mentions any :data:`REMOVED_TERMS` entry anywhere. Both the example sync and
-    the migration script have to answer this question, and answering it in two
-    places is how the two drift: one would keep accepting a file the other
-    rejects.
+    mentions any :data:`REMOVED_TERMS` entry anywhere. Both the migration script
+    and its tests have to answer this question, and answering it in two places is
+    how the two drift: one would keep accepting a file the other rejects.
 
     The term check is a substring match over the serialised document, so a
     withdrawn term appearing as a *value* also counts. That is deliberate --

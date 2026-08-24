@@ -47,9 +47,6 @@ git submodule update --init --recursive
 
 # 2. Create the environment and install dependencies
 uv sync
-
-# 3. Sync curated examples from upstream
-uv run sync-examples
 ```
 
 ## Project layout
@@ -66,11 +63,10 @@ vocab/
   context.jsonld          # JSON-LD context for the lorav: namespace
   lorawan-form.schema.json  # JSON Schema for LoRaWAN event forms
   lorawan-thing.schema.json  # JSON Schema for Thing-level OTAA / onboarding terms
-examples/         # curated TDs, mirrored from eclipse-thingweb/examples (not checked in)
+examples/         # curated TDs and their test vectors (checked in)
   devices/        # TD catalog generated from the reference device schemas (git-ignored)
   generated/      # output folder for generated schema/codec artifacts
 scripts/
-  sync_examples.py        # fetch curated *.td.json + *.vectors.json from upstream
   generate_device_tds.py  # batch-generate the examples/devices/ catalog
   migrate_td_to_events.py # rewrite a pre-0.3.0 TD into the events model
   vocab_usage_report.py   # count lorav: term usage across every bundled TD
@@ -368,9 +364,10 @@ Version 1.1.x uses two root keys, so declare two `apikey` schemes and require bo
 ## Examples
 
 The **6 curated example pairs** (`*.td.json` + `*.vectors.json`) in `examples/`
-are sourced from
+are checked in and maintained here. This repository is the reference for them:
+they are reviewed like any other source file, and
 [`eclipse-thingweb/examples/TTC26/examples`](https://github.com/eclipse-thingweb/examples/tree/main/TTC26/examples)
-and fetched by `uv run sync-examples`.
+mirrors them for the tutorial rather than the other way round.
 
 | File | Layout | Highlights |
 |------|--------|-----------|

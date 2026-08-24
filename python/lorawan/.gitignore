@@ -22,9 +22,8 @@ build/
 # Temporary local scratch scripts
 /_tmp_*.py
 
-# Curated examples are synced from upstream (not checked in).
-examples/*.td.json
-examples/*.vectors.json
+# The curated `examples/*.td.json` + `*.vectors.json` pairs are checked in: this
+# repository is the reference for them, so they are reviewed like any other source.
 
 # Generated codec artifacts (reproducible via `lorawan-wot convert` / generators)
 # Folder skeletons are tracked via .gitkeep; only their contents are ignored.

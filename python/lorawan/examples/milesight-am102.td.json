@@ -1,0 +1,110 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@type": "Thing",
+  "id": "urn:dev:milesight:am102",
+  "title": "milesight_am102",
+  "description": "Milesight AM102 indoor temperature & humidity sensor (channel/type/value payload).",
+  "securityDefinitions": {
+    "otaa_sc": {
+      "scheme": "apikey",
+      "in": "uri",
+      "name": "appKey",
+      "description": "LoRaWAN OTAA AppKey (root key). Injected at runtime by the Servient; never stored in this TD."
+    }
+  },
+  "security": "otaa_sc",
+  "base": "lorawan://A84041B98D5CB233/{appKey}/device",
+  "lorav:devEUI": "A84041B98D5CB233",
+  "lorav:joinEUI": "0000000000000001",
+  "lorav:macVersion": "1.0.3",
+  "schema:brand": "Milesight",
+  "schema:model": "AM102",
+  "lorav:region": "EU868",
+  "lorav:frequencyPlan": "EU_863_870",
+  "lorav:payloadLayout": "ctv",
+  "lorav:tagFields": [
+    {
+      "name": "channel_id",
+      "type": "u8"
+    },
+    {
+      "name": "channel_type",
+      "type": "u8"
+    }
+  ],
+  "events": {
+    "battery": {
+      "data": {
+        "type": "integer",
+        "unit": "%"
+      },
+      "forms": [
+        {
+          "href": "ctv",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            1,
+            117
+          ],
+          "lorav:wireType": "xsd:unsignedByte"
+        }
+      ]
+    },
+    "temperature": {
+      "data": {
+        "type": "number",
+        "unit": "Cel"
+      },
+      "forms": [
+        {
+          "href": "ctv",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            3,
+            103
+          ],
+          "lorav:wireType": "xsd:short",
+          "lorav:endian": "little",
+          "lorav:divisor": 10
+        }
+      ]
+    },
+    "humidity": {
+      "data": {
+        "type": "number",
+        "unit": "%RH"
+      },
+      "forms": [
+        {
+          "href": "ctv",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:tag": [
+            4,
+            104
+          ],
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:divisor": 2
+        }
+      ]
+    }
+  },
+  "version": {
+    "model": "1.0",
+    "instance": "1.7"
+  }
+}
