@@ -102,8 +102,8 @@ def test_migrated_output_is_accepted_by_the_converter():
     assert form["op"] == list(vocab.UPLINK_OPS)
     assert form[vocab.WIRE_TYPE] == "xsd:short"
     assert form[vocab.ADDEND] == 2
-    assert migrated[vocab.BRAND] == "Acme"
-    assert migrated["version"]["model"] == "rev-b"
+    assert migrated[vocab.MANUFACTURER] == "Acme"
+    assert migrated[vocab.HARDWARE_VERSION] == "rev-b"
 
 
 @pytest.mark.parametrize("placement", ["affordance", "form"])

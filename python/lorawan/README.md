@@ -100,7 +100,8 @@ uv run lorawan-wot decode examples/dragino-lht65n.td.json 0B450A8C02DD010A1E --f
 ```
 
 `--fport` is required for a `ports` layout, because the frame port selects which
-layout to apply. Other layouts ignore it.
+layout to apply; without it the interpreter cannot tell which field set the bytes
+belong to. Other layouts ignore it.
 
 ### Use it from Python
 
@@ -233,9 +234,15 @@ it is *transferred*.
 | `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |
 | `NwkKey` | OTAA network root key (1.1.x) — `apikey` scheme `name: "nwkKey"` | **yes (runtime)** |
 
-Device metadata that is not LoRaWAN-specific uses established vocabularies, such as `schema:brand` and `schema:model` from [schema.org](https://schema.org),
-the Thing's `version` (`model` for hardware, `instance` for firmware), and the
-Thing's `id`/`title` to identify the end device.
+Device metadata that is not LoRaWAN-specific uses [schema.org](https://schema.org):
+`schema:manufacturer` and `schema:mpn` (the manufacturer's part number) identify
+the model, `schema:version` and `schema:softwareVersion` carry the hardware and
+firmware revisions, and the Thing's `id`/`title` identify the end device.
+
+Not TD core's `version` object: that versions the *Thing Description*, so
+`version/model` and `version/instance` say which revision of the document you are
+holding. A TD can be revised without the device changing at all, which is exactly
+when you would want to read the firmware version and could not.
 
 ### Payload layouts
 
@@ -292,8 +299,8 @@ Supported `lorav:wireType` values: the sized XSD types (`xsd:byte`, `xsd:short`,
 | a unit code | `"unit": "Cel"` (already carries UN/CEFACT codes) |
 | a valid range | `"minimum": -40, "maximum": 85` |
 | an enumeration | `"oneOf": [{ "const": 0, "title": "dry" }, …]` |
-| brand / model | `"schema:brand"`, `"schema:model"` on the Thing |
-| hardware / firmware version | the Thing's `"version": { "model": …, "instance": … }` |
+| manufacturer / part number | `"schema:manufacturer"`, `"schema:mpn"` on the Thing |
+| hardware / firmware version | `"schema:version"`, `"schema:softwareVersion"` on the Thing |
 
 #### Grouped and conditional values
 
@@ -314,6 +321,67 @@ on either a `bit` of it or an exact `value` — never both.
 `lorav:bitmask` must select a *contiguous* range of bits. The base value is read
 once and decoded into every event masking it, and bases wider than one byte
 (`u16`/`u24`/`u32`) work too, for ranges spanning several bytes.
+
+#### Derived values (`lorav:derived`)
+
+Some values a device reports are never transmitted. The payload carries a raw
+count and the vendor's documentation gives the arithmetic that turns it into the
+quantity the user asked for, or the value is computed from two other readings.
+Such a value occupies **zero payload bytes**, which is what `lorav:wireType:
+"number"` records — there is no wire type, because there is nothing to read.
+
+`lorav:derived` is one object with up to five keys, each naming *where the value
+comes from*. They apply in this order:
+
+| Key | Meaning |
+|-----|---------|
+| `ref` | The input: `$name` of the event this value is computed from |
+| `polynomial` | Coefficients `[c0, c1, c2, …]`, applied to the input as `c0 + c1·x + c2·x² + …` |
+| `compute` | A binary operation `{ "op": "div", "a": …, "b": … }` over two values or constants |
+| `guard` | A precondition `{ "when": [ … ], "else": v }`; the value falls back to `v` when a `when` clause fails |
+| `transform` | Ordered post-processing steps, each one of `add` / `div` / `mult` / `round` |
+
+Decentlab's 5TM soil sensor transmits a raw dielectric permittivity and
+documents a fourth-order fit for the water content derived from it:
+
+```jsonc
+"volumetric_water_content": {
+  "data": { "type": "number" },
+  "forms": [{
+    "href": "uplink",
+    "lorav:wireType": "number",
+    "lorav:derived": {
+      "ref": "$dielectric_permittivity",
+      "polynomial": [4.3e-06, -0.00055, 0.0292, -0.053]
+    }
+  }]
+}
+```
+
+Its albedo sensor divides two other readings, and guards the division so a night
+time reading does not divide by zero:
+
+```jsonc
+"lorav:derived": {
+  "compute": { "op": "div", "a": "$reflected_radiation", "b": "$incoming_radiation" },
+  "guard": {
+    "when": [
+      { "field": "$incoming_radiation", "gt": 0 },
+      { "field": "$reflected_radiation", "gte": 0 }
+    ],
+    "else": 0
+  }
+}
+```
+
+These were five sibling terms before 0.3.0 (`lorav:ref`, `lorav:polynomial`,
+`lorav:compute`, `lorav:guard`, `lorav:transform`). Grouping them under one term
+makes "this value is computed rather than read" a single fact to test, instead of
+five independent flags that every consumer had to check in turn to learn the same
+thing.
+
+A `$name` reference resolves against the other events of the same Thing, so an
+input must itself be an event.
 
 ## Device onboarding & OTAA security
 

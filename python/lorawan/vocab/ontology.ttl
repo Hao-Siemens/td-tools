@@ -140,9 +140,10 @@ lorav:macVersion a owl:DatatypeProperty ;
 
 # --- Thing-level onboarding / device-repository metadata ---------------------
 #
-# Vendor and model are schema.org's job (schema:brand, schema:model) and the
-# firmware/hardware revision is TD core's 'version' object, so only the two terms
-# that are genuinely LoRaWAN-specific are defined here.
+# The manufacturer and part number are schema.org's job (schema:manufacturer,
+# schema:mpn) and so are the hardware and firmware revisions (schema:version,
+# schema:softwareVersion), so only the two terms that are genuinely
+# LoRaWAN-specific are defined here.
 
 lorav:region a owl:DatatypeProperty ;
     rdfs:label "region" ;
@@ -244,22 +245,22 @@ lorav:unece a owl:DatatypeProperty ;
 
 lorav:brand a owl:DatatypeProperty ;
     rdfs:label "end-device brand (withdrawn)" ;
-    rdfs:comment "Replaced by schema:brand, which consumers already understand." ;
+    rdfs:comment "Replaced by schema:manufacturer, which consumers already understand." ;
     owl:deprecated true .
 
 lorav:model a owl:DatatypeProperty ;
     rdfs:label "end-device model (withdrawn)" ;
-    rdfs:comment "Replaced by schema:model, which consumers already understand." ;
+    rdfs:comment "Replaced by schema:mpn, the manufacturer's own part number for the model." ;
     owl:deprecated true .
 
 lorav:hardwareVersion a owl:DatatypeProperty ;
     rdfs:label "hardware version (withdrawn)" ;
-    rdfs:comment "Replaced by the 'hardware' entry of TD core's 'version' object." ;
+    rdfs:comment "Replaced by schema:version. TD core's 'version' object versions the Thing Description itself, not the device." ;
     owl:deprecated true .
 
 lorav:softwareVersion a owl:DatatypeProperty ;
     rdfs:label "software version (withdrawn)" ;
-    rdfs:comment "Replaced by the 'software' entry of TD core's 'version' object." ;
+    rdfs:comment "Replaced by schema:softwareVersion. TD core's 'version' object versions the Thing Description itself, not the firmware running on the device." ;
     owl:deprecated true .
 
 lorav:endDeviceId a owl:DatatypeProperty ;

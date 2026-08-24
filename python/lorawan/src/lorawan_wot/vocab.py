@@ -23,7 +23,7 @@ Two namespaces are involved:
 
 Anything TD core already expresses is *not* redefined here: value constraints use
 ``minimum``/``maximum``, categorical mappings use ``oneOf`` with ``const``, units
-use ``unit``, and device metadata uses ``schema:``/``version``. :data:`REMOVED_TERMS`
+use ``unit``, and device metadata uses ``schema:``. :data:`REMOVED_TERMS`
 records the terms that were withdrawn for that reason and what replaced them.
 """
 
@@ -222,18 +222,35 @@ NWK_KEY_NAME: Final = "nwkKey"
 # --- Thing-level onboarding / device-repository metadata ---------------------
 #
 # Descriptive metadata used when registering a device with a LoRaWAN Network
-# Server (LNS). None of these are secrets. Brand, model and the hardware/software
-# versions are deliberately *not* minted here: TD core and schema.org already
-# express them (see :data:`REMOVED_TERMS`).
+# Server (LNS). None of these are secrets. Manufacturer, part number and the
+# hardware/software versions are deliberately *not* minted here: schema.org
+# already expresses them (see :data:`REMOVED_TERMS`).
 
 REGION: Final = "lorav:region"  # regulatory profile, e.g. "EU868", "US915"
 FREQUENCY_PLAN: Final = "lorav:frequencyPlan"  # LNS frequency plan id
 
 #: Companion vocabulary used for device metadata that is not LoRaWAN-specific.
+#:
+#: schema.org rather than TD core's ``version`` object, which versions the *Thing
+#: Description* -- ``version/model`` and ``version/instance`` say which revision
+#: of the document you are holding, not which firmware the device is running. A
+#: TD can be revised without the device changing at all, so conflating the two
+#: makes the device's firmware version unreadable the moment the TD is edited.
 SCHEMA_ORG_NS: Final = "https://schema.org/"
 SCHEMA_ORG_PREFIX: Final = "schema"
-BRAND: Final = "schema:brand"  # end-device brand / vendor
-MODEL: Final = "schema:model"  # end-device model
+
+#: Who made the end device. schema.org ranges this over ``Organization``; a plain
+#: string is the common shorthand and is what a device repository carries.
+MANUFACTURER: Final = "schema:manufacturer"
+#: Manufacturer Part Number -- the vendor's own identifier for this model.
+#: Preferred over ``schema:model``, which ranges over ``ProductModel`` and so
+#: invites a nested object where a device repository wants an identifier.
+MPN: Final = "schema:mpn"
+#: Firmware / software revision running on the end device.
+SOFTWARE_VERSION: Final = "schema:softwareVersion"
+#: Hardware revision of the end device. schema.org has no hardware-specific
+#: version property, so the generic ``schema:version`` carries it.
+HARDWARE_VERSION: Final = "schema:version"
 
 # --- Withdrawn terms ---------------------------------------------------------
 
@@ -268,10 +285,10 @@ REMOVED_TERMS: Final[dict[str, str]] = {
     "lorav:validRange": "the data schema's 'minimum' and 'maximum'",
     "lorav:enum": "the data schema's 'oneOf' with 'const' and 'title'",
     "lorav:unece": "the data schema's 'unit' (which already carries UN/CEFACT codes)",
-    "lorav:brand": BRAND,
-    "lorav:model": MODEL,
-    "lorav:hardwareVersion": "the Thing's 'version/model'",
-    "lorav:softwareVersion": "the Thing's 'version/instance'",
+    "lorav:brand": MANUFACTURER,
+    "lorav:model": MPN,
+    "lorav:hardwareVersion": HARDWARE_VERSION,
+    "lorav:softwareVersion": SOFTWARE_VERSION,
     "lorav:endDeviceId": "the Thing's 'id' or 'title'",
 }
 

@@ -16,9 +16,10 @@ asserts that the names it handles are exactly the keys of
 :data:`lorawan_wot.vocab.REMOVED_TERMS` -- withdraw a term without teaching this
 script about it and the suite fails.
 
-What it cannot do is invent information. ``lorav:hardwareVersion`` and
-``lorav:softwareVersion`` become ``version/model`` and ``version/instance``, and
-``lorav:endDeviceId`` is dropped because the Thing's ``id`` already identifies
+What it cannot do is invent information. ``lorav:brand`` and ``lorav:model``
+become ``schema:manufacturer`` and ``schema:mpn``, ``lorav:hardwareVersion`` and
+``lorav:softwareVersion`` become ``schema:version`` and ``schema:softwareVersion``,
+and ``lorav:endDeviceId`` is dropped because the Thing's ``id`` already identifies
 the device -- if a deployment used it for something else, that is a judgement
 call the reviewer has to make.
 
@@ -66,6 +67,14 @@ _RENAMED_TERMS: dict[str, str] = {
     "lorav:offset": vocab.ADDEND,
     "lorav:length": vocab.BYTE_LENGTH,
     "lorav:var": vocab.ALIAS,
+}
+
+#: Old Thing-level device metadata terms, mapped to their schema.org replacement.
+_METADATA_TERMS: dict[str, str] = {
+    "lorav:brand": vocab.MANUFACTURER,
+    "lorav:model": vocab.MPN,
+    "lorav:hardwareVersion": vocab.HARDWARE_VERSION,
+    "lorav:softwareVersion": vocab.SOFTWARE_VERSION,
 }
 
 
@@ -149,7 +158,7 @@ def _migrate_affordance(affordance: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_context(context: Any) -> Any:
-    """Add the schema.org prefix when the Thing needs it for brand/model."""
+    """Add the schema.org prefix when the Thing needs it for device metadata."""
     if not isinstance(context, list):
         context = [context]
     prefixes = [entry for entry in context if isinstance(entry, dict)]
@@ -164,7 +173,6 @@ def _migrate_context(context: Any) -> Any:
 def migrate_td(td: dict[str, Any]) -> dict[str, Any]:
     """Return ``td`` rewritten for the 0.3.0 events model."""
     out: dict[str, Any] = {}
-    version: dict[str, Any] = dict(td.get("version", {}))
     needs_schema_org = False
 
     for key, value in td.items():
@@ -172,25 +180,14 @@ def migrate_td(td: dict[str, Any]) -> dict[str, Any]:
             out[vocab.EVENTS] = {
                 name: _migrate_affordance(affordance) for name, affordance in value.items()
             }
-        elif key == "lorav:brand":
-            out[vocab.BRAND] = value
+        elif key in _METADATA_TERMS:
+            out[_METADATA_TERMS[key]] = value
             needs_schema_org = True
-        elif key == "lorav:model":
-            out[vocab.MODEL] = value
-            needs_schema_org = True
-        elif key == "lorav:hardwareVersion":
-            version["model"] = value
-        elif key == "lorav:softwareVersion":
-            version["instance"] = value
         elif key == "lorav:endDeviceId":
             continue  # the Thing's 'id' already identifies the device
-        elif key == "version":
-            continue  # re-emitted below, once both halves are known
         else:
             out[key] = value
 
-    if version:
-        out["version"] = version
     if needs_schema_org and "@context" in out:
         out["@context"] = _migrate_context(out["@context"])
     return out

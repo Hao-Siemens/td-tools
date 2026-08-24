@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://www.w3.org/2024/wot/lorawan/lorawan-thing.schema.json",
   "title": "LoRaWAN WoT Binding Thing Metadata",
-  "description": "Validation rules for the Thing-level LoRaWAN OTAA identity and onboarding terms within a Thing Description. Vendor and model are expressed with schema:brand / schema:model and the device revision with TD core's 'version' object, so this binding defines no terms of its own for them. Secrets (AppKey/NwkKey) must NOT appear here; they are declared as 'apikey' security schemes and injected at runtime.",
+  "description": "Validation rules for the Thing-level LoRaWAN OTAA identity and onboarding terms within a Thing Description. Device metadata that is not LoRaWAN-specific is expressed with schema.org - schema:manufacturer, schema:mpn, schema:version (hardware) and schema:softwareVersion (firmware) - so this binding defines no terms of its own for them. Secrets (AppKey/NwkKey) must NOT appear here; they are declared as 'apikey' security schemes and injected at runtime.",
   "type": "object",
   "properties": {
     "lorav:devEUI": {
