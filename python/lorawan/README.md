@@ -82,7 +82,7 @@ external/device-payload-schema/   # MultiTech interpreter (pinned git submodule)
 ```bash
 uv run lorawan-wot convert examples/milesight-em300-th.td.json
 # write to a file instead of stdout:
-uv run lorawan-wot convert examples/milesight-em300-th.td.json -o em300-th.schema.yaml
+uv run lorawan-wot convert examples/milesight-em300-th.td.json -o examples/generated/em300-th.schema.yaml
 ```
 
 ### Decode an uplink payload
@@ -270,6 +270,7 @@ so you can ignore them until a device needs one.
 | `lorav:slot` | Order of an event within its group (multi-field TLV / flagged / match) | field order | common | any multi-value group |
 | `lorav:presentWhen` | Condition gating this value: `{ field, bit }` or `{ field, value }` | `flagged` / `match` | common | Decentlab, Dragino, Netvox, RadioBridge, Radionode |
 | `lorav:bitmask` | Extract a contiguous bit range (single- or multi-byte base) | bit range `u8[lo:hi]` | common | Dragino, Digital Matter, MClimate, RadioBridge, RAKwireless |
+| `lorav:valueMap` | Map each wire integer to one of `data`'s `enum` values: `[{ wireValue, value }, …]` | `lookup` | common | Milesight, MClimate, RadioBridge, Makerfabs |
 | `lorav:addend` | `value = value + addend` (after scaling) | `add` | common | Decentlab, MClimate, RadioBridge |
 | `lorav:multiplier` | `value = raw * multiplier` | `mult` | common | Decentlab, Digital Matter, MClimate |
 | `lorav:derived` | Computed value: `{ ref, polynomial, compute, guard, transform }` | `ref`/`polynomial`/… | rare | Decentlab, Digital Matter, MClimate |
@@ -294,9 +295,54 @@ Supported `lorav:wireType` values: the sized XSD types (`xsd:byte`, `xsd:short`,
 |----------------------------|---------------|
 | a unit code | `"unit": "Cel"` (already carries UN/CEFACT codes) |
 | a valid range | `"minimum": -40, "maximum": 85` |
-| an enumeration | `"oneOf": [{ "const": 0, "title": "dry" }, …]` |
+| the values a reading may take | `"enum": ["dry", "wet"]` |
 | manufacturer / part number | `"schema:manufacturer"`, `"schema:mpn"` on the Thing |
 | hardware / firmware version | `"schema:version"`, `"schema:softwareVersion"` on the Thing |
+
+#### Categorical values (`lorav:valueMap`)
+
+A reading such as a leak state is split across the two halves of the affordance.
+The `data` schema says which values the reading may take, using TD core's `enum`;
+the form says which byte on the wire produces which of them:
+
+```json
+"leakage_status": {
+  "data": { "type": "string", "enum": ["normal", "leak"] },
+  "forms": [{
+    "href": "uplink",
+    "op": ["subscribeevent", "unsubscribeevent"],
+    "lorav:tag": [5, 0],
+    "lorav:wireType": "u8",
+    "lorav:valueMap": [
+      { "wireValue": 0, "value": "normal" },
+      { "wireValue": 1, "value": "leak" }
+    ]
+  }]
+}
+```
+
+This is the one place the binding mints a term for something TD core looks able
+to express, so it is worth saying why. TD core can list the allowed values, and
+above it does. What it has no vocabulary for is the *correspondence* between a
+wire encoding and one of them — which is a fact about the transfer, exactly like
+`lorav:wireType` or `lorav:divisor`, and exactly what a protocol binding is for.
+The WoT [BACnet binding](https://w3c.github.io/wot-binding-templates/bindings/protocols/bacnet/index.html)
+splits it the same way, with `bacv:hasValueMap` pairing `bacv:hasProtocolVal`
+with `bacv:hasLogicalVal` while the data schema keeps a plain `enum`; the
+[Modbus binding](https://w3c.github.io/wot-binding-templates/bindings/protocols/modbus/index.html)
+keeps `modv:type` on the form for the same reason.
+
+Before 0.3.0 this was a `lorav:enum` object keyed by the wire integer. An interim
+0.3.0 draft replaced it with `"oneOf": [{ "const": 0, "title": "dry" }, …]` on the
+data schema, to avoid minting a term at all. That failed at both ends. `const` held
+the wire integer inside the schema of the *decoded* value, so the schema
+described neither: `{"type": "string", "oneOf": [{"const": 0}]}` rejects the
+decoded `"dry"` and the raw `0` alike, and no instance can satisfy it. And it
+left `title` — a display label, with a multi-language `titles` sibling — carrying
+machine-readable data, so translating or rewording a Thing Description silently
+changed what its payloads decoded to. `tests/test_decode.py` now validates every
+vector's decoded value against its own event's `data`, which is the check whose
+absence let that through.
 
 #### Grouped and conditional values
 
@@ -429,8 +475,9 @@ are checked in and maintained here.
 |------|--------|-----------|
 | `examples/adeunis-comfort2.td.json` | `fixed` | Smallest complete example: signed temperature, humidity, battery |
 | `examples/milesight-em300-th.td.json` | `ctv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
-| `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `oneOf`-labelled leak state |
+| `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `lorav:valueMap`-labelled leak state |
 | `examples/dragino-lht65n.td.json` | `ports` | Two fPorts plus status bits via `lorav:bitmask`; OTAA AppKey (1.0.3). Extension-specific alternate paths are a documented gap |
+| `examples/mclimate-mc-button.td.json` | `fixed` | Affine raw-byte scaling (`lorav:multiplier` + `lorav:addend`) and a `lorav:bitmask` status bit |
 | `examples/netvox-r718a.td.json` | `ports` | Validated against `TheThingsNetwork/lorawan-devices` vectors; two fPorts, each branching on a `match` discriminator |
 | `examples/generic-lorawan11.td.json` | `fixed` | LoRaWAN 1.1 OTAA with AppKey **and** NwkKey; onboarding metadata |
 

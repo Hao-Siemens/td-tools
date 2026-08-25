@@ -82,17 +82,14 @@ def _fold_into_data(key: str, value: Any, data: dict[str, Any]) -> bool:
     """Rewrite a withdrawn term as its TD-core equivalent on ``data``.
 
     Returns whether ``key`` was one of them, so callers know not to copy it
-    through. These three describe the decoded value rather than how it is
+    through. These two describe the decoded value rather than how it is
     transferred, so they belong on the data schema wherever they were written.
     The 0.2.x form schema placed them on the form, but hand-written documents put
     them next to ``type`` and ``unit`` often enough that both spots must be
     handled -- carrying one through unchanged would produce a "migrated" file the
     converter still refuses.
     """
-    if key == "lorav:enum":
-        # JSON object keys are strings; the payload indexes them as integers.
-        data["oneOf"] = [{"const": int(k), "title": label} for k, label in sorted(value.items())]
-    elif key == "lorav:validRange":
+    if key == "lorav:validRange":
         data["minimum"], data["maximum"] = value
     elif key == "lorav:unece":
         data.setdefault("unit", value)  # 'unit' already carries UN/CEFACT codes
@@ -121,6 +118,24 @@ def _migrate_form(form: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
             condition[_CONDITION_TERMS[key]] = value
         elif key in _DERIVED_TERMS:
             derived[_DERIVED_TERMS[key]] = value
+        elif key == "lorav:enum":
+            # Splits in two: the values a reading may take are a TD core 'enum'
+            # on the data schema, while which wire integer yields which of them
+            # stays a binding fact and becomes lorav:valueMap on the form. JSON
+            # object keys are strings; the payload indexes them as integers.
+            ordered = sorted((int(k), label) for k, label in value.items())
+            migrated[vocab.VALUE_MAP] = [
+                {vocab.VM_WIRE_VALUE: wire, vocab.VM_VALUE: label} for wire, label in ordered
+            ]
+            labels = [label for _, label in ordered]
+            data["enum"] = labels
+            if all(isinstance(label, str) for label in labels):
+                # A 0.2.x document typed the event after the wire integer, since
+                # that is what the term sat next to. The event now carries the
+                # mapped label, so the type has to follow it -- leaving
+                # "type": "integer" beside string labels would reproduce exactly
+                # the unsatisfiable schema this rewrite exists to remove.
+                data["type"] = "string"
         elif not _fold_into_data(key, value, data):
             migrated[key] = value
 

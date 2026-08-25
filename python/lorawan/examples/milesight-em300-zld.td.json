@@ -93,15 +93,9 @@
     "leakage_status": {
       "data": {
         "type": "string",
-        "oneOf": [
-          {
-            "const": 0,
-            "title": "normal"
-          },
-          {
-            "const": 1,
-            "title": "leak"
-          }
+        "enum": [
+          "normal",
+          "leak"
         ]
       },
       "forms": [
@@ -115,7 +109,17 @@
             5,
             0
           ],
-          "lorav:wireType": "u8"
+          "lorav:wireType": "u8",
+          "lorav:valueMap": [
+            {
+              "wireValue": 0,
+              "value": "normal"
+            },
+            {
+              "wireValue": 1,
+              "value": "leak"
+            }
+          ]
         }
       ]
     }

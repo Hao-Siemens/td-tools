@@ -758,6 +758,12 @@ def _build_form(
     if endian is not None:
         form[vocab.ENDIAN] = endian
     _store_scaling(form, field)
+    if (enum := _enum(field)) is not None:
+        # Which wire encoding yields which value is a fact about the transfer, so
+        # it belongs here; the values themselves go in the data schema's 'enum'.
+        form[vocab.VALUE_MAP] = [
+            {vocab.VM_WIRE_VALUE: wire, vocab.VM_VALUE: label} for wire, label in enum.items()
+        ]
     if "var" in field:
         form[vocab.ALIAS] = field["var"]
     if "length" in field:
@@ -801,8 +807,9 @@ def _data_schema(wot_type: str, field: dict[str, Any]) -> dict[str, Any]:
 
     Everything TD core can already say is said here rather than in a ``lorav:``
     term of our own: ``unit`` for the unit, ``minimum``/``maximum`` for the
-    plausibility range, and ``oneOf`` entries of ``const`` plus ``title`` for a
-    categorical lookup table.
+    plausibility range, and ``enum`` for the values a categorical reading may
+    take. Only the wire-to-value mapping behind that ``enum`` lands on the form,
+    as ``lorav:valueMap`` -- see :func:`_build_form`.
     """
     data: dict[str, Any] = {"type": wot_type}
     if "unit" in field:
@@ -811,7 +818,19 @@ def _data_schema(wot_type: str, field: dict[str, Any]) -> dict[str, Any]:
     if isinstance(rng, (list, tuple)) and len(rng) == 2:
         data["minimum"], data["maximum"] = rng[0], rng[1]
     if (enum := _enum(field)) is not None:
-        data["oneOf"] = [{"const": value, "title": label} for value, label in enum.items()]
+        # JSON Schema requires 'enum' members to be unique, but nothing stops a
+        # vendor schema from giving two wire values the same label ("reserved"
+        # twice, say). No device in the current catalog does, yet the corpus is
+        # an external submodule that keeps growing, and the failure would be a
+        # silently invalid schema rather than a crash. Nothing is lost by
+        # collapsing them: the form's lorav:valueMap still records every wire
+        # value separately. '==' rather than a set, so an unhashable label from
+        # YAML cannot turn a duplicate into a TypeError.
+        labels: list[Any] = []
+        for label in enum.values():
+            if label not in labels:
+                labels.append(label)
+        data["enum"] = labels
     return data
 
 

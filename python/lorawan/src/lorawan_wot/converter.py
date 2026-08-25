@@ -74,9 +74,12 @@ class _Field:
     A field is assembled from the two halves of an event affordance: the ``form``
     says where the value sits in the payload and how to turn bytes into it, and
     the ``data`` schema says what the value means (``unit``, ``minimum``/
-    ``maximum``, ``oneOf`` labels). Keeping the halves distinct is what lets the
-    binding stay out of TD core's way -- anything TD core can already express is
-    read from ``data`` rather than restated as a ``lorav:`` term.
+    ``maximum``, the ``enum`` of allowed values). Keeping the halves distinct is
+    what lets the binding stay out of TD core's way -- anything TD core can
+    already express is read from ``data`` rather than restated as a ``lorav:``
+    term. The one exception is ``lorav:valueMap``, which states which wire
+    encoding produces which of ``data``'s allowed values; TD core has no way to
+    say that, and it is a fact about the transfer, so it lives on the form.
     """
 
     def __init__(
@@ -272,12 +275,12 @@ class _Field:
         return field
 
     def _emit_semantics(self, field: dict[str, Any]) -> None:
-        """Copy the data schema's value semantics onto a MultiTech ``field``.
+        """Copy this value's semantics onto a MultiTech ``field``.
 
-        These are the parts TD core already expresses, so they are read from the
-        event's ``data`` rather than from a ``lorav:`` term of our own:
-        ``oneOf`` carries the categorical labels and ``minimum``/``maximum`` the
-        plausibility range.
+        ``minimum``/``maximum`` are read from the event's ``data`` because TD core
+        already states a plausibility range there. The categorical mapping is read
+        from the *form* instead: ``data`` says which values are allowed, but only
+        the binding can say which wire encoding yields which of them.
         """
         if (lookup := self._lookup()) is not None:
             # The reference interpreter applies a categorical mapping through the
@@ -288,24 +291,24 @@ class _Field:
             field["valid_range"] = valid_range
 
     def _lookup(self) -> dict[int, Any] | None:
-        """Build the interpreter's ``lookup`` table from the data schema's ``oneOf``.
+        """Build the interpreter's ``lookup`` table from the form's value map.
 
-        A categorical value is a TD data schema listing its allowed values as
-        ``oneOf`` entries, each a ``const`` with a human-readable ``title``. Only
-        integer-keyed tables can drive a ``lookup``; anything else is a
-        constraint the interpreter has no equivalent for and is left alone.
+        Each ``lorav:valueMap`` entry pairs the integer on the wire with the value
+        the data schema declares. A non-integer ``wireValue`` cannot drive a
+        ``lookup``; the form schema already forbids it, so rather than emit half a
+        table this returns ``None`` and leaves the field as a plain number.
         """
-        one_of = self.data.get("oneOf")
-        if not isinstance(one_of, list) or not one_of:
+        value_map = self.form.get(vocab.VALUE_MAP)
+        if not isinstance(value_map, list) or not value_map:
             return None
         table: dict[int, Any] = {}
-        for entry in one_of:
-            if not isinstance(entry, dict) or "const" not in entry or "title" not in entry:
+        for entry in value_map:
+            if not isinstance(entry, dict) or vocab.VM_VALUE not in entry:
                 return None
-            const = entry["const"]
-            if not isinstance(const, int) or isinstance(const, bool):
+            wire = entry.get(vocab.VM_WIRE_VALUE)
+            if not isinstance(wire, int) or isinstance(wire, bool):
                 return None
-            table[const] = entry["title"]
+            table[wire] = entry[vocab.VM_VALUE]
         return table
 
     def _valid_range(self) -> list[Any] | None:

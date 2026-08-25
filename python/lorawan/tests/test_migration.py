@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 
+import jsonschema
 import pytest
 
 from lorawan_wot import vocab
@@ -126,6 +127,41 @@ def test_data_schema_terms_are_migrated_wherever_they_were_written(placement):
     assert not vocab.uses_withdrawn_vocabulary(migrated)
     data = migrated[vocab.EVENTS]["battery"][vocab.DATA]
     assert (data["minimum"], data["maximum"]) == (0, 100)
+
+
+def test_enum_migrates_to_a_satisfiable_schema_plus_a_value_map():
+    """``lorav:enum`` splits into a data-schema ``enum`` and a form value map.
+
+    The declared type is rewritten too. A 0.2.x document typed the affordance
+    after the wire integer, because that is what ``lorav:enum`` sat next to; the
+    event now carries the mapped label, so leaving ``"type": "integer"`` beside
+    string labels would migrate one unsatisfiable schema into another.
+    """
+    migrated = migrate.migrate_td(
+        {
+            vocab.PROPERTIES: {
+                "leak": {
+                    "type": "integer",
+                    vocab.FORMS: [
+                        {
+                            vocab.BYTE_OFFSET: 0,
+                            "lorav:type": "u8",
+                            "lorav:enum": {"0": "normal", "1": "leak"},
+                        }
+                    ],
+                }
+            }
+        }
+    )
+
+    assert not vocab.uses_withdrawn_vocabulary(migrated)
+    event = migrated[vocab.EVENTS]["leak"]
+    assert event[vocab.DATA] == {"type": "string", "enum": ["normal", "leak"]}
+    assert event[vocab.FORMS][0][vocab.VALUE_MAP] == [
+        {"wireValue": 0, "value": "normal"},
+        {"wireValue": 1, "value": "leak"},
+    ]
+    jsonschema.validate(instance="leak", schema=event[vocab.DATA])
 
 
 def test_migration_is_idempotent():

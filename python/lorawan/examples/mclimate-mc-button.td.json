@@ -1,0 +1,127 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@type": "Thing",
+  "id": "urn:dev:mclimate:mc-button",
+  "title": "mclimate_mc_button",
+  "description": "MClimate Multipurpose Button LoRaWAN",
+  "securityDefinitions": {
+    "otaa_sc": {
+      "scheme": "apikey",
+      "in": "uri",
+      "name": "appKey",
+      "description": "LoRaWAN OTAA AppKey (root key). Injected at runtime by the Servient; never stored in this TD."
+    }
+  },
+  "security": "otaa_sc",
+  "base": "lorawan://0000000000000001/{appKey}/device",
+  "lorav:devEUI": "0000000000000001",
+  "lorav:joinEUI": "0000000000000000",
+  "lorav:macVersion": "1.0.3",
+  "schema:manufacturer": "MClimate",
+  "schema:version": "1.0",
+  "schema:softwareVersion": "1.0",
+  "lorav:region": "EU868",
+  "lorav:frequencyPlan": "EU_863_870",
+  "lorav:payloadLayout": "fixed",
+  "events": {
+    "frameType": {
+      "description": "Byte 0 frame discriminator. 1 indicates a keepalive frame in the official decoder.",
+      "data": {
+        "type": "integer"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:byteOffset": 0,
+          "lorav:wireType": "xsd:unsignedByte"
+        }
+      ]
+    },
+    "batteryVoltage": {
+      "description": "Battery voltage in volts using direct raw scaling from byte 1: V=(byte*8+1600)/1000.",
+      "data": {
+        "type": "number",
+        "unit": "V"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:byteOffset": 1,
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:multiplier": 0.008,
+          "lorav:addend": 1.6
+        }
+      ]
+    },
+    "thermistorProperlyConnected": {
+      "description": "Thermistor status derived from byte 2, bit 2 with official semantics (1=connected, 0=disconnected).",
+      "data": {
+        "type": "integer"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:byteOffset": 2,
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:bitmask": "0x04",
+          "lorav:multiplier": -1,
+          "lorav:addend": 1
+        }
+      ]
+    },
+    "sensorTemperature": {
+      "description": "Thermistor temperature in Celsius from byte 3 using the official 0.1C scaling. This example keeps vectors in the common range where byte 2 high temperature bits are zero.",
+      "data": {
+        "type": "number",
+        "unit": "Cel"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:byteOffset": 3,
+          "lorav:wireType": "xsd:unsignedByte",
+          "lorav:divisor": 10
+        }
+      ]
+    },
+    "pressEvent": {
+      "description": "Raw button press event code from byte 4 (1=single, 2=double, 3=triple in the official codec usage).",
+      "data": {
+        "type": "integer"
+      },
+      "forms": [
+        {
+          "href": "uplink",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "lorav:byteOffset": 4,
+          "lorav:wireType": "xsd:unsignedByte"
+        }
+      ]
+    }
+  }
+}

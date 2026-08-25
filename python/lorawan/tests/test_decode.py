@@ -8,6 +8,7 @@ matches -- exercising the whole binding pipeline.
 
 from __future__ import annotations
 
+import jsonschema
 import pytest
 
 from lorawan_wot import vocab
@@ -51,3 +52,23 @@ def test_decoded_values_satisfy_td_types():
             assert isinstance(value, int)
         elif declared == "number":
             assert isinstance(value, (int, float))
+
+
+@pytest.mark.parametrize(("td", "payload", "fport", "expected"), list(_iter_cases()))
+def test_decoded_value_validates_against_its_data_schema(td, payload, fport, expected):
+    """Every decoded value must validate against its own event's ``data`` schema.
+
+    A Thing Description promises that an event's ``data`` describes what the
+    consumer will receive, so the decoder's output is the one instance that schema
+    must accept. Nothing checked that until 0.3.0, and the gap was not theoretical:
+    categorical readings were emitted as ``{"type": "string", "oneOf": [{"const":
+    0, "title": "dry"}]}``, which no instance can satisfy -- it rejects the decoded
+    ``"dry"`` for not matching ``const: 0`` and the raw ``0`` for not being a
+    string. All 21 such schemas in the examples were unsatisfiable, and every
+    decode test still passed, because they only ever compared decoded values to
+    the vectors and never to the TD.
+    """
+    decoded = decode_uplink(td, payload, fport=fport)
+    for name in expected:
+        schema = td[vocab.EVENTS][name][vocab.DATA]
+        jsonschema.validate(instance=decoded[name], schema=schema)

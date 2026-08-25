@@ -1,0 +1,50 @@
+{
+  "td": "mclimate-mc-button.td.json",
+  "description": "MClimate Multipurpose Button keepalive vectors based on the official TTN codec: battery scaling, thermistor-connectivity bit, 10-bit temperature, and press event code.",
+  "vectors": [
+    {
+      "name": "single_press_connected",
+      "payload": "016400F801",
+      "expected": {
+        "frameType": 1,
+        "batteryVoltage": 2.4,
+        "thermistorProperlyConnected": 1,
+        "sensorTemperature": 24.8,
+        "pressEvent": 1
+      }
+    },
+    {
+      "name": "double_press_disconnected",
+      "payload": "017D04F402",
+      "expected": {
+        "frameType": 1,
+        "batteryVoltage": 2.6,
+        "thermistorProperlyConnected": 0,
+        "sensorTemperature": 24.4,
+        "pressEvent": 2
+      }
+    },
+    {
+      "name": "triple_press_zero_temp",
+      "payload": "0132000003",
+      "expected": {
+        "frameType": 1,
+        "batteryVoltage": 2.0,
+        "thermistorProperlyConnected": 1,
+        "sensorTemperature": 0.0,
+        "pressEvent": 3
+      }
+    },
+    {
+      "name": "triple_press_temp",
+      "payload": "01AB029B03",
+      "expected": {
+        "frameType": 1,
+        "batteryVoltage": 2.968,
+        "thermistorProperlyConnected": 1,
+        "sensorTemperature": 15.5,
+        "pressEvent": 3
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import jsonschema
 import pytest
 
 from lorawan_wot import vocab
@@ -133,15 +134,23 @@ def test_tlv_schema_carries_tag_fields_and_tags():
 
 
 def test_lookup_enum_round_trips_to_strings():
-    """A ``lookup`` table becomes a TD core ``oneOf`` and a string-typed event."""
+    """A ``lookup`` table splits into a data-schema ``enum`` and a form value map."""
     schema = {
         "endian": "big",
         "fields": [{"name": "hemi", "type": "u8", "lookup": {0: "N", 1: "S"}}],
     }
     td = payload_schema_to_td(schema, source="demo.yaml")
-    data = td[vocab.EVENTS]["hemi"][vocab.DATA]
-    assert data["oneOf"] == [{"const": 0, "title": "N"}, {"const": 1, "title": "S"}]
+    event = td[vocab.EVENTS]["hemi"]
+    data = event[vocab.DATA]
     assert data["type"] == "string"
+    assert data["enum"] == ["N", "S"]
+    # The wire integers stay on the form, so the data schema accepts the value
+    # the decoder will actually hand the consumer.
+    jsonschema.validate(instance="N", schema=data)
+    assert event[vocab.FORMS][0][vocab.VALUE_MAP] == [
+        {"wireValue": 0, "value": "N"},
+        {"wireValue": 1, "value": "S"},
+    ]
     assert td_to_payload_schema(td)["fields"][0]["lookup"] == {0: "N", 1: "S"}
 
 

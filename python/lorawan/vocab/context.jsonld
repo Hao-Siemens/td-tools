@@ -13,6 +13,7 @@
     "divisor": "lorav:divisor",
     "addend": "lorav:addend",
     "bitmask": "lorav:bitmask",
+    "valueMap": "lorav:valueMap",
     "byteOffset": "lorav:byteOffset",
     "byteLength": "lorav:byteLength",
     "tag": "lorav:tag",

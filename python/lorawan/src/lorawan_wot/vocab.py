@@ -22,9 +22,12 @@ Two namespaces are involved:
   wire data type of a value, following the published LoRaWAN binding draft.
 
 Anything TD core already expresses is *not* redefined here: value constraints use
-``minimum``/``maximum``, categorical mappings use ``oneOf`` with ``const``, units
-use ``unit``, and device metadata uses ``schema:``. :data:`REMOVED_TERMS`
-records the terms that were withdrawn for that reason and what replaced them.
+``minimum``/``maximum``, the allowed values of a categorical reading use ``enum``,
+units use ``unit``, and device metadata uses ``schema:``. What TD core cannot say
+is how a wire encoding *corresponds* to one of those values, so that mapping --
+and only that mapping -- stays a binding term (:data:`VALUE_MAP`).
+:data:`REMOVED_TERMS` records the terms that were withdrawn for this reason and
+what replaced them.
 """
 
 from __future__ import annotations
@@ -121,6 +124,35 @@ SCALE_TERMS: Final[dict[str, str]] = {
 
 #: Reverse of :data:`SCALE_TERMS`, for generating a Thing Description.
 SCALE_TERMS_BY_FIELD_KEY: Final[dict[str, str]] = {v: k for k, v in SCALE_TERMS.items()}
+
+#: Mapping from the integer on the wire to the value the data schema declares,
+#: e.g. ``[{"wireValue": 0, "value": "normal"}, {"wireValue": 1, "value": "leak"}]``.
+#:
+#: A form term, not a data-schema one, even though TD core's ``enum`` can list the
+#: allowed values perfectly well -- and it does, on the event's ``data``. What TD
+#: core has no vocabulary for is the *correspondence* between a wire encoding and
+#: one of those values, which is precisely the kind of fact a protocol binding
+#: exists to state. The WoT BACnet binding reaches the same conclusion with
+#: ``bacv:hasValueMap`` / ``bacv:hasProtocolVal`` / ``bacv:hasLogicalVal``, and
+#: the Modbus binding does the analogous thing for widths and byte order by
+#: keeping ``modv:type`` on the form while ``data``'s ``type`` stays application
+#: level. This term is the categorical counterpart of :data:`WIRE_TYPE`.
+#:
+#: The spelling this replaces -- ``oneOf: [{"const": 0, "title": "dry"}]`` on the
+#: data schema -- was withdrawn because it failed at both ends. ``const`` put the
+#: wire encoding inside the schema of the *decoded* value, so the schema matched
+#: neither: the emitted ``{"type": "string", "oneOf": [{"const": 0}]}`` is
+#: unsatisfiable, rejecting the decoded ``"dry"`` and the raw ``0`` alike. And it
+#: made ``title`` -- a display label, with a multi-language ``titles`` sibling --
+#: carry machine-readable data, so translating or rewording a Thing Description
+#: silently changed what its payloads decoded to.
+VALUE_MAP: Final = "lorav:valueMap"
+
+#: Sub-keys of a :data:`VALUE_MAP` entry. Unprefixed, like the sub-keys of
+#: :data:`PRESENT_WHEN` and :data:`DERIVED`: they are part of this term's shape
+#: rather than terms in their own right.
+VM_WIRE_VALUE: Final = "wireValue"  # the integer as it appears in the payload
+VM_VALUE: Final = "value"  # the decoded value, as listed in data's 'enum'
 
 # --- Grouping / conditional-presence terms -----------------------------------
 #
@@ -270,6 +302,7 @@ REMOVED_TERMS: Final[dict[str, str]] = {
     "lorav:type": WIRE_TYPE,
     "lorav:offset": f"{ADDEND} (renamed to free the name from {BYTE_OFFSET})",
     "lorav:length": BYTE_LENGTH,
+    "lorav:enum": VALUE_MAP,
     # Consolidated into one object apiece.
     "lorav:presenceField": f"{PRESENT_WHEN}/{PW_FIELD}",
     "lorav:presenceBit": f"{PRESENT_WHEN}/{PW_BIT}",
@@ -283,7 +316,6 @@ REMOVED_TERMS: Final[dict[str, str]] = {
     "lorav:guard": f"{DERIVED}/guard",
     # Withdrawn: TD core or a companion vocabulary already expresses this.
     "lorav:validRange": "the data schema's 'minimum' and 'maximum'",
-    "lorav:enum": "the data schema's 'oneOf' with 'const' and 'title'",
     "lorav:unece": "the data schema's 'unit' (which already carries UN/CEFACT codes)",
     "lorav:brand": MANUFACTURER,
     "lorav:model": MPN,
@@ -343,6 +375,7 @@ FORM_TERMS: Final = frozenset(
         MULTIPLIER,
         DIVISOR,
         ADDEND,
+        VALUE_MAP,
         PRESENT_WHEN,
         ALIAS,
         DERIVED,

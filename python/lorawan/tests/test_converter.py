@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 
+import jsonschema
 import pytest
 
 from lorawan_wot import vocab
@@ -145,32 +146,47 @@ def test_fixed_layout_skips_leading_header_bytes():
     assert fields[1]["name"] == "value"
 
 
-def test_one_of_becomes_decodable_lookup_table():
-    """A ``oneOf`` of ``const``/``title`` maps to a ``lookup`` table.
+def test_value_map_becomes_decodable_lookup_table():
+    """A form's ``lorav:valueMap`` maps to a ``lookup`` table.
 
-    The categorical mapping is stated with TD core's own data-schema terms rather
-    than a binding term of our own. The reference interpreter only honours
-    ``values`` on dedicated ``type: enum`` fields, so on a plain field it must be
-    emitted as ``lookup``.
+    The wire-to-value correspondence is a binding fact and lives on the form; the
+    values themselves are TD core's ``enum`` on the data schema. The reference
+    interpreter only honours ``values`` on dedicated ``type: enum`` fields, so on
+    a plain field it must be emitted as ``lookup``.
     """
     td = {
         "lorav:payloadLayout": "fixed",
         "events": {
             "hemisphere": {
-                "data": {
-                    "type": "integer",
-                    "oneOf": [
-                        {"const": 0, "title": "N"},
-                        {"const": 1, "title": "S"},
-                    ],
-                },
-                "forms": [{"lorav:byteOffset": 0, "lorav:wireType": "u8"}],
+                "data": {"type": "string", "enum": ["N", "S"]},
+                "forms": [
+                    {
+                        "lorav:byteOffset": 0,
+                        "lorav:wireType": "u8",
+                        "lorav:valueMap": [
+                            {"wireValue": 0, "value": "N"},
+                            {"wireValue": 1, "value": "S"},
+                        ],
+                    }
+                ],
             },
         },
     }
     field = td_to_payload_schema(td)["fields"][0]
     assert "values" not in field
     assert field["lookup"] == {0: "N", 1: "S"}
+
+
+def test_wire_values_stay_out_of_the_data_schema():
+    """An event's ``data`` must accept what the decoder actually produces.
+
+    The predecessor spelling put the wire integer in the data schema as
+    ``oneOf``/``const`` next to ``"type": "string"``, which no instance could
+    satisfy. Asserting the decoded label validates is what keeps the wire
+    encoding on the form where it belongs.
+    """
+    data = {"type": "string", "enum": ["N", "S"]}
+    jsonschema.validate(instance="N", schema=data)
 
 
 def test_minimum_and_maximum_become_a_valid_range():

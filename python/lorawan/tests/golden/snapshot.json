@@ -98,6 +98,43 @@
         }
       ]
     },
+    "mclimate-mc-button": {
+      "name": "urn_dev_mclimate_mc_button",
+      "version": 1,
+      "endian": "big",
+      "direction": "uplink",
+      "description": "mclimate_mc_button",
+      "fields": [
+        {
+          "name": "frameType",
+          "type": "u8"
+        },
+        {
+          "name": "batteryVoltage",
+          "type": "u8",
+          "mult": 0.008,
+          "add": 1.6,
+          "unit": "V"
+        },
+        {
+          "name": "thermistorProperlyConnected",
+          "type": "u8[2:2]",
+          "mult": -1,
+          "add": 1,
+          "consume": 1
+        },
+        {
+          "name": "sensorTemperature",
+          "type": "u8",
+          "div": 10,
+          "unit": "Cel"
+        },
+        {
+          "name": "pressEvent",
+          "type": "u8"
+        }
+      ]
+    },
     "milesight-em300-th": {
       "name": "urn_dev_milesight_em300_th",
       "version": 1,
@@ -319,6 +356,34 @@
       "_quality": {
         "battery": "good"
       }
+    },
+    "mclimate-mc-button-single_press_connected": {
+      "frameType": 1,
+      "batteryVoltage": 2.4000000000000004,
+      "thermistorProperlyConnected": 1,
+      "sensorTemperature": 24.8,
+      "pressEvent": 1
+    },
+    "mclimate-mc-button-double_press_disconnected": {
+      "frameType": 1,
+      "batteryVoltage": 2.6,
+      "thermistorProperlyConnected": 0,
+      "sensorTemperature": 24.4,
+      "pressEvent": 2
+    },
+    "mclimate-mc-button-triple_press_zero_temp": {
+      "frameType": 1,
+      "batteryVoltage": 2.0,
+      "thermistorProperlyConnected": 1,
+      "sensorTemperature": 0.0,
+      "pressEvent": 3
+    },
+    "mclimate-mc-button-triple_press_temp": {
+      "frameType": 1,
+      "batteryVoltage": 2.968,
+      "thermistorProperlyConnected": 1,
+      "sensorTemperature": 15.5,
+      "pressEvent": 3
     },
     "milesight-em300-th-temperature_humidity": {
       "temperature": 24.8,

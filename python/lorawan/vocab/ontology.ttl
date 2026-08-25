@@ -71,6 +71,10 @@ lorav:bitmask a owl:DatatypeProperty ;
     rdfs:comment "Hexadecimal mask selecting a contiguous range of bits from the raw value. Usage: common, for status/flag bytes (Dragino, Digital Matter, MClimate, RadioBridge, RAKwireless)." ;
     rdfs:range xsd:string .
 
+lorav:valueMap a owl:DatatypeProperty ;
+    rdfs:label "value map" ;
+    rdfs:comment "Maps each integer on the wire to the value the event's data schema declares, as a list of {wireValue, value} pairs. The allowed values themselves are stated by TD core's 'enum' on the data schema; what TD core cannot express is which encoding yields which of them, and that correspondence is a fact about the transfer rather than about the value's meaning. Compare bacv:hasValueMap with bacv:hasProtocolVal and bacv:hasLogicalVal in the WoT BACnet binding, which keeps the same split. Usage: common, for status and state readings (Milesight, MClimate, RadioBridge, Makerfabs)." .
+
 lorav:byteOffset a owl:DatatypeProperty ;
     rdfs:label "byte offset" ;
     rdfs:comment "Zero-based byte position of the value within a fixed payload layout. Usage: core for 'fixed' and 'ports' layouts." ;
@@ -234,8 +238,8 @@ lorav:validRange a owl:DatatypeProperty ;
     owl:deprecated true .
 
 lorav:enum a owl:DatatypeProperty ;
-    rdfs:label "enumeration (withdrawn)" ;
-    rdfs:comment "Replaced by TD core's 'oneOf' entries of 'const' plus 'title' on the event's data schema." ;
+    rdfs:label "enumeration (renamed)" ;
+    rdfs:comment "Renamed to lorav:valueMap, whose {wireValue, value} pairs make the wire integer and the decoded value separate fields. Briefly expressed instead as TD core 'oneOf' entries of 'const' plus 'title', which was withdrawn: 'const' held the wire integer inside the schema of the decoded value, making that schema unsatisfiable, and 'title' is a display label whose rewording would have changed decoded payloads." ;
     owl:deprecated true .
 
 lorav:unece a owl:DatatypeProperty ;
