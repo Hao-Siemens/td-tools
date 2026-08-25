@@ -178,15 +178,37 @@ def test_value_map_becomes_decodable_lookup_table():
 
 
 def test_wire_values_stay_out_of_the_data_schema():
-    """An event's ``data`` must accept what the decoder actually produces.
+    """Converting must not push the form's wire values back into ``data``.
 
     The predecessor spelling put the wire integer in the data schema as
     ``oneOf``/``const`` next to ``"type": "string"``, which no instance could
-    satisfy. Asserting the decoded label validates is what keeps the wire
-    encoding on the form where it belongs.
+    satisfy. The data schema is passed through untouched now, so the labels stay
+    the only thing an event promises its consumer.
     """
-    data = {"type": "string", "enum": ["N", "S"]}
-    jsonschema.validate(instance="N", schema=data)
+    td = {
+        "lorav:payloadLayout": "fixed",
+        "events": {
+            "heading": {
+                "data": {"type": "string", "enum": ["N", "S"]},
+                "forms": [
+                    {
+                        "lorav:byteOffset": 0,
+                        "lorav:wireType": "u8",
+                        "lorav:valueMap": [
+                            {"wireValue": 0, "value": "N"},
+                            {"wireValue": 1, "value": "S"},
+                        ],
+                    }
+                ],
+            },
+        },
+    }
+
+    field = td_to_payload_schema(td)["fields"][0]
+
+    assert field["lookup"] == {0: "N", 1: "S"}
+    assert td["events"]["heading"]["data"] == {"type": "string", "enum": ["N", "S"]}
+    jsonschema.validate(instance="N", schema=td["events"]["heading"]["data"])
 
 
 def test_minimum_and_maximum_become_a_valid_range():

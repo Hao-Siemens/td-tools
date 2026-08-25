@@ -68,9 +68,13 @@
       ]
     },
     "thermistorProperlyConnected": {
-      "description": "Thermistor status derived from byte 2, bit 2 with official semantics (1=connected, 0=disconnected).",
+      "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent, so the value map inverts it into the state names rather than restating the polarity in prose.",
       "data": {
-        "type": "integer"
+        "type": "string",
+        "enum": [
+          "connected",
+          "disconnected"
+        ]
       },
       "forms": [
         {
@@ -82,8 +86,16 @@
           "lorav:byteOffset": 2,
           "lorav:wireType": "xsd:unsignedByte",
           "lorav:bitmask": "0x04",
-          "lorav:multiplier": -1,
-          "lorav:addend": 1
+          "lorav:valueMap": [
+            {
+              "wireValue": 0,
+              "value": "connected"
+            },
+            {
+              "wireValue": 1,
+              "value": "disconnected"
+            }
+          ]
         }
       ]
     },
@@ -107,7 +119,7 @@
       ]
     },
     "pressEvent": {
-      "description": "Raw button press event code from byte 4 (1=single, 2=double, 3=triple in the official codec usage).",
+      "description": "Button press code from byte 4 (1=single, 2=double, 3=triple). Left as the raw code rather than given a lorav:valueMap because the codes start at 1, which the reference interpreter's index-based lookup cannot represent; see 'Known limitations'.",
       "data": {
         "type": "integer"
       },

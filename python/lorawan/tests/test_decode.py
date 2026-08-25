@@ -72,3 +72,55 @@ def test_decoded_value_validates_against_its_data_schema(td, payload, fport, exp
     for name in expected:
         schema = td[vocab.EVENTS][name][vocab.DATA]
         jsonschema.validate(instance=decoded[name], schema=schema)
+
+
+def _value_map_td(pairs):
+    """A one-event TD whose single byte is mapped through ``pairs``."""
+    return {
+        vocab.PAYLOAD_LAYOUT: "fixed",
+        vocab.EVENTS: {
+            "state": {
+                vocab.DATA: {"type": "string", "enum": [label for _, label in pairs]},
+                vocab.FORMS: [
+                    {
+                        vocab.BYTE_OFFSET: 0,
+                        vocab.WIRE_TYPE: "u8",
+                        vocab.VALUE_MAP: [
+                            {vocab.VM_WIRE_VALUE: wire, vocab.VM_VALUE: label}
+                            for wire, label in pairs
+                        ],
+                    }
+                ],
+            }
+        },
+    }
+
+
+def test_value_map_decodes_a_wire_value_to_its_label():
+    """The mapping has to survive the round trip into the reference interpreter."""
+    td = _value_map_td([(0, "normal"), (1, "leak")])
+    assert decode_uplink(td, "00")["state"] == "normal"
+    assert decode_uplink(td, "01")["state"] == "leak"
+
+
+def test_value_map_that_does_not_start_at_zero_is_a_known_gap():
+    """A table whose wire values skip 0 silently loses its highest entries.
+
+    The MultiTech interpreter applies ``lookup`` positionally -- ``if 0 <= value
+    < len(lookup)`` -- so it reads a table as a list indexed by the wire value
+    rather than as a mapping. A table keyed 1..3 therefore has length 3, and wire
+    value 3 falls outside the guard and comes back as the bare integer instead of
+    its label. The binding can express such a table (three RadioBridge rbs30x
+    events in the generated catalog do), so this is pinned rather than asserted
+    away: if a submodule bump ever fixes the interpreter, this test fails and
+    tells us the gap has closed.
+    """
+    td = _value_map_td([(1, "single"), (2, "double"), (3, "triple")])
+
+    assert decode_uplink(td, "01")["state"] == "single"
+    assert decode_uplink(td, "03")["state"] == 3  # not "triple"
+
+    # And the gap is detectable rather than silent: the leaked wire value fails
+    # the data schema, which is exactly the check the oneOf/const spelling lacked.
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=3, schema=td[vocab.EVENTS]["state"][vocab.DATA])

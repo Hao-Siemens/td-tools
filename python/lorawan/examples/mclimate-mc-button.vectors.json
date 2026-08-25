@@ -1,6 +1,6 @@
 {
   "td": "mclimate-mc-button.td.json",
-  "description": "MClimate Multipurpose Button keepalive vectors based on the official TTN codec: battery scaling, thermistor-connectivity bit, 10-bit temperature, and press event code.",
+  "description": "MClimate Multipurpose Button keepalive vectors based on the official TTN codec: battery scaling, thermistor-connectivity bit mapped through lorav:valueMap, 10-bit temperature, and press event code.",
   "vectors": [
     {
       "name": "single_press_connected",
@@ -8,7 +8,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.4,
-        "thermistorProperlyConnected": 1,
+        "thermistorProperlyConnected": "connected",
         "sensorTemperature": 24.8,
         "pressEvent": 1
       }
@@ -19,7 +19,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.6,
-        "thermistorProperlyConnected": 0,
+        "thermistorProperlyConnected": "disconnected",
         "sensorTemperature": 24.4,
         "pressEvent": 2
       }
@@ -30,7 +30,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.0,
-        "thermistorProperlyConnected": 1,
+        "thermistorProperlyConnected": "connected",
         "sensorTemperature": 0.0,
         "pressEvent": 3
       }
@@ -41,7 +41,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.968,
-        "thermistorProperlyConnected": 1,
+        "thermistorProperlyConnected": "connected",
         "sensorTemperature": 15.5,
         "pressEvent": 3
       }
