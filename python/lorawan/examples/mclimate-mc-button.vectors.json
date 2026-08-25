@@ -8,7 +8,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.4,
-        "thermistorProperlyConnected": "connected",
+        "thermistorProperlyConnected": true,
         "sensorTemperature": 24.8,
         "pressEvent": 1
       }
@@ -19,7 +19,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.6,
-        "thermistorProperlyConnected": "disconnected",
+        "thermistorProperlyConnected": false,
         "sensorTemperature": 24.4,
         "pressEvent": 2
       }
@@ -30,7 +30,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.0,
-        "thermistorProperlyConnected": "connected",
+        "thermistorProperlyConnected": true,
         "sensorTemperature": 0.0,
         "pressEvent": 3
       }
@@ -41,7 +41,7 @@
       "expected": {
         "frameType": 1,
         "batteryVoltage": 2.968,
-        "thermistorProperlyConnected": "connected",
+        "thermistorProperlyConnected": true,
         "sensorTemperature": 15.5,
         "pressEvent": 3
       }

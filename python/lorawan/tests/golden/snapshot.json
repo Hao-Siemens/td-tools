@@ -121,8 +121,8 @@
           "type": "u8[2:2]",
           "consume": 1,
           "lookup": {
-            "0": "connected",
-            "1": "disconnected"
+            "0": true,
+            "1": false
           }
         },
         {
@@ -362,28 +362,28 @@
     "mclimate-mc-button-single_press_connected": {
       "frameType": 1,
       "batteryVoltage": 2.4000000000000004,
-      "thermistorProperlyConnected": "connected",
+      "thermistorProperlyConnected": true,
       "sensorTemperature": 24.8,
       "pressEvent": 1
     },
     "mclimate-mc-button-double_press_disconnected": {
       "frameType": 1,
       "batteryVoltage": 2.6,
-      "thermistorProperlyConnected": "disconnected",
+      "thermistorProperlyConnected": false,
       "sensorTemperature": 24.4,
       "pressEvent": 2
     },
     "mclimate-mc-button-triple_press_zero_temp": {
       "frameType": 1,
       "batteryVoltage": 2.0,
-      "thermistorProperlyConnected": "connected",
+      "thermistorProperlyConnected": true,
       "sensorTemperature": 0.0,
       "pressEvent": 3
     },
     "mclimate-mc-button-triple_press_temp": {
       "frameType": 1,
       "batteryVoltage": 2.968,
-      "thermistorProperlyConnected": "connected",
+      "thermistorProperlyConnected": true,
       "sensorTemperature": 15.5,
       "pressEvent": 3
     },

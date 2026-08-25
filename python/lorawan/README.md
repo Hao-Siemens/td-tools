@@ -270,7 +270,7 @@ so you can ignore them until a device needs one.
 | `lorav:slot` | Order of an event within its group (multi-field TLV / flagged / match) | field order | common | any multi-value group |
 | `lorav:presentWhen` | Condition gating this value: `{ field, bit }` or `{ field, value }` | `flagged` / `match` | common | Decentlab, Dragino, Netvox, RadioBridge, Radionode |
 | `lorav:bitmask` | Extract a contiguous bit range (single- or multi-byte base) | bit range `u8[lo:hi]` | common | Dragino, Digital Matter, MClimate, RadioBridge, RAKwireless |
-| `lorav:valueMap` | Map each wire integer to one of `data`'s `enum` values: `[{ wireValue, value }, …]` | `lookup` | common | Milesight, MClimate, RadioBridge, Makerfabs |
+| `lorav:valueMap` | Map each wire integer to the value it denotes: `[{ wireValue, value }, …]` | `lookup` | rare | Milesight, MClimate, RadioBridge, Makerfabs |
 | `lorav:addend` | `value = value + addend` (after scaling) | `add` | common | Decentlab, MClimate, RadioBridge |
 | `lorav:multiplier` | `value = raw * multiplier` | `mult` | common | Decentlab, Digital Matter, MClimate |
 | `lorav:derived` | Computed value: `{ ref, polynomial, compute, guard, transform }` | `ref`/`polynomial`/… | rare | Decentlab, Digital Matter, MClimate |
@@ -332,12 +332,11 @@ with `bacv:hasLogicalVal` while the data schema keeps a plain `enum`; the
 [Modbus binding](https://w3c.github.io/wot-binding-templates/bindings/protocols/modbus/index.html)
 keeps `modv:type` on the form for the same reason.
 
-It also replaces arithmetic used as a naming device. A status bit whose polarity
-is inverted was previously written as `"lorav:multiplier": -1` with
-`"lorav:addend": 1`, which turns 1 into 0 without saying that 1 meant *absent* —
-see `examples/mclimate-mc-button.td.json`, where the bit is now mapped to
-`"connected"` / `"disconnected"` directly. Note the wire values must start at 0
-and be contiguous; see [Known limitations](#known-limitations).
+It also covers inverted status bits. A `value` may be any JSON type, so a bit
+that is *set* when a sensor is absent maps to `true`/`false` directly instead of
+being flipped arithmetically with `"lorav:multiplier": -1` — see
+`examples/mclimate-mc-button.td.json`. Wire values must start at 0 and be
+contiguous; see [Known limitations](#known-limitations).
 
 Before 0.3.0 this was a `lorav:enum` object keyed by the wire integer. An interim
 0.3.0 draft replaced it with `"oneOf": [{ "const": 0, "title": "dry" }, …]` on the
@@ -484,7 +483,7 @@ are checked in and maintained here.
 | `examples/milesight-em300-th.td.json` | `ctv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
 | `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `lorav:valueMap`-labelled leak state |
 | `examples/dragino-lht65n.td.json` | `ports` | Two fPorts plus status bits via `lorav:bitmask`; OTAA AppKey (1.0.3). Extension-specific alternate paths are a documented gap |
-| `examples/mclimate-mc-button.td.json` | `fixed` | Affine raw-byte scaling (`lorav:multiplier` + `lorav:addend`) and a `lorav:bitmask` status bit named through `lorav:valueMap` |
+| `examples/mclimate-mc-button.td.json` | `fixed` | Affine raw-byte scaling (`lorav:multiplier` + `lorav:addend`); an inverted status bit named through `lorav:valueMap` |
 | `examples/netvox-r718a.td.json` | `ports` | Validated against `TheThingsNetwork/lorawan-devices` vectors; two fPorts, each branching on a `match` discriminator |
 | `examples/generic-lorawan11.td.json` | `fixed` | LoRaWAN 1.1 OTAA with AppKey **and** NwkKey; onboarding metadata |
 
@@ -549,12 +548,10 @@ The binding covers most common fixed/ports/TLV layouts, but these gaps remain:
   byte source under an extension/status flag (Dragino `Ext`-style), only the
   common path is modeled.
 * **`lorav:valueMap` tables must start at 0 and be contiguous** — the reference
-  interpreter applies a lookup positionally (`0 <= value < len(table)`), so it
-  reads the table as a list indexed by the wire value. A table keyed 1–3 loses
-  its last entry: wire value 3 decodes to the bare integer `3` rather than its
-  label. Three RadioBridge `rbs30x` events in the generated catalog are affected.
-  The decoded value then fails its own `data` schema, so the failure is
-  detectable — see `test_value_map_that_does_not_start_at_zero_is_a_known_gap`.
+  interpreter indexes the table positionally (`0 <= value < len(table)`), so a
+  table keyed 1–3 drops its last entry: wire value 3 decodes to `3` rather than
+  its label. Affects three RadioBridge `rbs30x` events. The leaked integer fails
+  the event's own `data` schema, so it is at least detectable.
 * **TS013 JS generator shared-byte gap** — `generate_ts013_codec.py` can drop
   bare bit-range fields and fail to advance the cursor correctly. This affects
   generated JavaScript only; `lorawan-wot decode` remains correct.

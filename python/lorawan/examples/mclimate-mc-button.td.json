@@ -68,13 +68,9 @@
       ]
     },
     "thermistorProperlyConnected": {
-      "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent, so the value map inverts it into the state names rather than restating the polarity in prose.",
+      "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent, so the value map inverts it rather than restating the polarity in prose.",
       "data": {
-        "type": "string",
-        "enum": [
-          "connected",
-          "disconnected"
-        ]
+        "type": "boolean"
       },
       "forms": [
         {
@@ -89,11 +85,11 @@
           "lorav:valueMap": [
             {
               "wireValue": 0,
-              "value": "connected"
+              "value": true
             },
             {
               "wireValue": 1,
-              "value": "disconnected"
+              "value": false
             }
           ]
         }

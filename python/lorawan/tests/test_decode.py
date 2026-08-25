@@ -34,7 +34,12 @@ def test_decode_matches_expected(td, payload, fport, expected):
     data = decode_uplink(td, payload, fport=fport)
     for key, want in expected.items():
         assert key in data, f"missing field {key!r} in {data}"
-        if isinstance(want, float):
+        if isinstance(want, bool):
+            # Identity, and checked first: Python has True == 1, so a decoder
+            # that returned the raw bit instead of mapping it through
+            # lorav:valueMap would still satisfy '== True'.
+            assert data[key] is want, f"{key}: {data[key]!r} is not {want!r}"
+        elif isinstance(want, float):
             assert data[key] == pytest.approx(want), f"{key}: {data[key]} != {want}"
         else:
             assert data[key] == want, f"{key}: {data[key]} != {want}"

@@ -89,7 +89,7 @@
     "lorav:valueMap": {
       "type": "array",
       "minItems": 1,
-      "description": "Maps each integer on the wire to the value the event's data schema declares. TD core's 'enum' lists which values are allowed; it has no way to say which wire encoding produces which of them, and that correspondence is what this term supplies. Compare bacv:hasValueMap in the WoT BACnet binding.",
+      "description": "Maps each integer on the wire to the value it denotes. TD core's data schema says which values are allowed; it has no way to say which wire encoding produces which of them, and that correspondence is what this term supplies. Compare bacv:hasValueMap in the WoT BACnet binding.",
       "items": {
         "type": "object",
         "properties": {
@@ -98,7 +98,7 @@
             "description": "The integer as it appears in the payload."
           },
           "value": {
-            "description": "The decoded value, which must be one of the data schema's 'enum' entries."
+            "description": "The decoded value. Any JSON type the event's data schema accepts, so an inverted status bit can map to true/false rather than to a label."
           }
         },
         "required": ["wireValue", "value"],

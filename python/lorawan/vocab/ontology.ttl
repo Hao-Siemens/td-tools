@@ -73,7 +73,7 @@ lorav:bitmask a owl:DatatypeProperty ;
 
 lorav:valueMap a owl:DatatypeProperty ;
     rdfs:label "value map" ;
-    rdfs:comment "Maps each integer on the wire to the value the event's data schema declares, as a list of {wireValue, value} pairs. The allowed values themselves are stated by TD core's 'enum' on the data schema; what TD core cannot express is which encoding yields which of them, and that correspondence is a fact about the transfer rather than about the value's meaning. Compare bacv:hasValueMap with bacv:hasProtocolVal and bacv:hasLogicalVal in the WoT BACnet binding, which keeps the same split. Usage: common, for status and state readings (Milesight, MClimate, RadioBridge, Makerfabs)." .
+    rdfs:comment "Maps each integer on the wire to the value it denotes, as a list of {wireValue, value} pairs. The allowed values themselves are stated by the event's data schema, through 'enum' or through a self-enumerating type such as boolean; what TD core cannot express is which encoding yields which of them, and that correspondence is a fact about the transfer rather than about the value's meaning. Compare bacv:hasValueMap with bacv:hasProtocolVal and bacv:hasLogicalVal in the WoT BACnet binding, which keeps the same split. Usage: rare, for status and state readings (MClimate, RadioBridge, Makerfabs)." .
 
 lorav:byteOffset a owl:DatatypeProperty ;
     rdfs:label "byte offset" ;

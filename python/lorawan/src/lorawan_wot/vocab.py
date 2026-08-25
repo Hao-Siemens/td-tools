@@ -128,8 +128,9 @@ SCALE_TERMS_BY_FIELD_KEY: Final[dict[str, str]] = {v: k for k, v in SCALE_TERMS.
 #: Mapping from the integer on the wire to the value the data schema declares,
 #: e.g. ``[{"wireValue": 0, "value": "normal"}, {"wireValue": 1, "value": "leak"}]``.
 #:
-#: A form term, not a data-schema one, even though TD core's ``enum`` can list the
-#: allowed values perfectly well -- and it does, on the event's ``data``. What TD
+#: A form term, not a data-schema one, even though TD core describes the allowed
+#: values perfectly well -- and it does, on the event's ``data``, through ``enum``
+#: or through a type that already enumerates itself such as ``boolean``. What TD
 #: core has no vocabulary for is the *correspondence* between a wire encoding and
 #: one of those values, which is precisely the kind of fact a protocol binding
 #: exists to state. The WoT BACnet binding reaches the same conclusion with
@@ -152,7 +153,7 @@ VALUE_MAP: Final = "lorav:valueMap"
 #: :data:`PRESENT_WHEN` and :data:`DERIVED`: they are part of this term's shape
 #: rather than terms in their own right.
 VM_WIRE_VALUE: Final = "wireValue"  # the integer as it appears in the payload
-VM_VALUE: Final = "value"  # the decoded value, as listed in data's 'enum'
+VM_VALUE: Final = "value"  # the decoded value, any JSON type the data schema allows
 
 # --- Grouping / conditional-presence terms -----------------------------------
 #
