@@ -247,6 +247,11 @@ firmware revisions, and the Thing's `id`/`title` identify the end device.
 For `tlv`/`ctv` you may declare the tag fields at Thing level with
 `lorav:tagFields` (defaults to `channel` + `type`, both `u8`).
 
+`ctv` is accepted as an alias and converts identically — the two names describe
+the same tagged structure, differing only in whether a length travels on the
+wire, which this binding does not model. Every bundled device uses `tlv`; prefer
+it unless you have a reason not to.
+
 ### Form-level vocabulary (`lorav:` terms)
 
 The **Tier** column shows how often each term appears across the bundled
@@ -447,7 +452,7 @@ are checked in and maintained here.
 | File | Layout | Highlights |
 |------|--------|-----------|
 | `examples/adeunis-comfort2.td.json` | `fixed` | Smallest complete example: signed temperature, humidity, battery |
-| `examples/milesight-em300-th.td.json` | `ctv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
+| `examples/milesight-em300-th.td.json` | `tlv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
 | `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `lorav:valueMap`-labelled leak state |
 | `examples/dragino-lht65n.td.json` | `ports` | Two fPorts plus status bits via `lorav:bitmask`; OTAA AppKey (1.0.3). Extension-specific alternate paths are a documented gap |
 | `examples/mclimate-mc-button.td.json` | `fixed` | Affine raw-byte scaling (`lorav:multiplier` + `lorav:addend`); an inverted status bit named through `lorav:valueMap` |

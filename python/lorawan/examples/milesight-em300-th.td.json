@@ -29,7 +29,7 @@
   "schema:softwareVersion": "1.7",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
-  "lorav:payloadLayout": "ctv",
+  "lorav:payloadLayout": "tlv",
   "lorav:tagFields": [
     {
       "name": "channel_id",
@@ -48,7 +48,7 @@
       },
       "forms": [
         {
-          "href": "ctv",
+          "href": "uplink",
           "op": [
             "subscribeevent",
             "unsubscribeevent"
@@ -68,7 +68,7 @@
       },
       "forms": [
         {
-          "href": "ctv",
+          "href": "uplink",
           "op": [
             "subscribeevent",
             "unsubscribeevent"
@@ -90,7 +90,7 @@
       },
       "forms": [
         {
-          "href": "ctv",
+          "href": "uplink",
           "op": [
             "subscribeevent",
             "unsubscribeevent"

@@ -78,6 +78,10 @@ PAYLOAD_LAYOUT: Final = "lorav:payloadLayout"
 LAYOUT_FIXED: Final = "fixed"  # fixed byte positions
 LAYOUT_PORTS: Final = "ports"  # fPort selects a fixed layout
 LAYOUT_TLV: Final = "tlv"  # tag/length/value
+# Accepted as an alias of LAYOUT_TLV rather than a layout of its own: the two
+# differ only in whether a length accompanies each value on the wire, and this
+# binding takes the width from the wire type either way, so nothing branches on
+# the distinction. Every bundled device is emitted as 'tlv'.
 LAYOUT_CTV: Final = "ctv"  # channel/type/value (e.g. Cayenne LPP)
 SUPPORTED_LAYOUTS: Final = frozenset({LAYOUT_FIXED, LAYOUT_PORTS, LAYOUT_TLV, LAYOUT_CTV})
 

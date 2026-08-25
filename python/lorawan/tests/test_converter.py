@@ -30,6 +30,20 @@ def test_tlv_layout_builds_tag_cases(em300th_td):
     assert tlv["cases"]["[1, 117]"][0]["name"] == "battery"
 
 
+def test_ctv_is_an_alias_of_tlv(em300th_td):
+    """The two layout names must keep converting identically.
+
+    ``ctv`` is accepted but nothing branches on it, so a reader can reasonably
+    assume it does something. Pinning the equality says it does not, and would
+    fail if a future change gave one name behaviour the other lacks -- at which
+    point the examples using the other name would start decoding differently.
+    """
+    as_ctv = copy.deepcopy(em300th_td)
+    as_ctv[vocab.PAYLOAD_LAYOUT] = vocab.LAYOUT_CTV
+
+    assert td_to_payload_schema(as_ctv) == td_to_payload_schema(em300th_td)
+
+
 def test_dragino_example_uses_ports_layout_for_basic_fport_coverage(lht65n_td):
     """The Dragino example models fPort-separated uplinks (`ports` layout)."""
     schema = td_to_payload_schema(lht65n_td)
