@@ -247,10 +247,8 @@ firmware revisions, and the Thing's `id`/`title` identify the end device.
 For `tlv`/`ctv` you may declare the tag fields at Thing level with
 `lorav:tagFields` (defaults to `channel` + `type`, both `u8`).
 
-`ctv` is accepted as an alias and converts identically — the two names describe
-the same tagged structure, differing only in whether a length travels on the
-wire, which this binding does not model. Every bundled device uses `tlv`; prefer
-it unless you have a reason not to.
+`ctv` is currently accepted as an alias and converts identically — the two names describe
+the same tagged structure.
 
 ### Form-level vocabulary (`lorav:` terms)
 
