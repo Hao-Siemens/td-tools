@@ -10,9 +10,9 @@ from lorawan_wot import vocab
 from lorawan_wot.converter import ConversionError, td_to_payload_schema
 
 
-def test_tlv_layout_builds_tag_cases(am102_td):
+def test_tlv_layout_builds_tag_cases(em300th_td):
     """A ctv/tlv TD becomes a single tlv block keyed by each event's tag."""
-    schema = td_to_payload_schema(am102_td)
+    schema = td_to_payload_schema(em300th_td)
 
     assert schema["endian"] == "little"
     assert schema["direction"] == "uplink"
@@ -349,11 +349,11 @@ def test_overlapping_offsets_raise():
         td_to_payload_schema(td)
 
 
-def test_input_td_is_not_mutated(am102_td):
+def test_input_td_is_not_mutated(em300th_td):
     """Conversion must not modify the caller's Thing Description."""
-    original = copy.deepcopy(am102_td)
-    td_to_payload_schema(am102_td)
-    assert am102_td == original
+    original = copy.deepcopy(em300th_td)
+    td_to_payload_schema(em300th_td)
+    assert em300th_td == original
 
 
 def test_shared_byte_bitfields_consume_once():

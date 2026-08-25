@@ -25,8 +25,8 @@ def vector_files() -> list[Path]:
 
 
 @pytest.fixture
-def am102_td() -> dict[str, Any]:
-    return load_json(EXAMPLES_DIR / "milesight-am102.td.json")
+def em300th_td() -> dict[str, Any]:
+    return load_json(EXAMPLES_DIR / "milesight-em300-th.td.json")
 
 
 @pytest.fixture

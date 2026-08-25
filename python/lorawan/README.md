@@ -7,7 +7,7 @@ validated against ChirpStack; it should also work in The Things Network (TTN).
 The TD carries the payload binding *inside its event forms* (using
 terms prefixed with `lorav:`). A converter translates that TD into the
 [LoRa Alliance Payload Schema / MultiTech](https://github.com/MultiTechSystems/device-payload-schema)
-language, where the reference interpreter converts it into decoding functions. These functions can then be used in the LoRaWAN network server (e.g. ChirpStack / TTN) for actual byte decoding.
+language, where the reference interpreter converts it into decoding functions. These functions can then be used in the LoRaWAN server (e.g. ChirpStack / TTN) for actual byte decoding.
 
 ```
 Thing Description (.td.json)
@@ -80,9 +80,9 @@ external/device-payload-schema/   # MultiTech interpreter (pinned git submodule)
 ### Convert a Thing Description into a payload schema
 
 ```bash
-uv run lorawan-wot convert examples/milesight-am102.td.json
+uv run lorawan-wot convert examples/milesight-em300-th.td.json
 # write to a file instead of stdout:
-uv run lorawan-wot convert examples/milesight-am102.td.json -o am102.schema.yaml
+uv run lorawan-wot convert examples/milesight-em300-th.td.json -o em300-th.schema.yaml
 ```
 
 ### Decode an uplink payload
@@ -113,12 +113,12 @@ import yaml
 from lorawan_wot import payload_schema_to_td, td_to_payload_schema
 from lorawan_wot.decode import decode_uplink
 
-with open("examples/milesight-am102.td.json", encoding="utf-8") as fp:
+with open("examples/milesight-em300-th.td.json", encoding="utf-8") as fp:
     td = json.load(fp)
 
 schema = td_to_payload_schema(td)  # TD -> MultiTech schema (dict)
-print(decode_uplink(td, "01755A03671B01046850"))
-# {'battery': 90, 'temperature': 28.3, 'humidity': 40.0}
+print(decode_uplink(td, "0175640367F900046862"))
+# {'battery': 100, 'temperature': 24.9, 'humidity': 49.0}
 
 # The reverse direction: MultiTech schema -> Thing Description.
 source_path = "external/device-payload-schema/schemas/devices/makerfabs/ath20.yaml"
@@ -239,10 +239,6 @@ Device metadata that is not LoRaWAN-specific uses [schema.org](https://schema.or
 the model, `schema:version` and `schema:softwareVersion` carry the hardware and
 firmware revisions, and the Thing's `id`/`title` identify the end device.
 
-Not TD core's `version` object: that versions the *Thing Description*, so
-`version/model` and `version/instance` say which revision of the document you are
-holding. A TD can be revised without the device changing at all, which is exactly
-when you would want to read the firmware version and could not.
 
 ### Payload layouts
 
@@ -376,12 +372,7 @@ time reading does not divide by zero:
 
 These were five sibling terms before 0.3.0 (`lorav:ref`, `lorav:polynomial`,
 `lorav:compute`, `lorav:guard`, `lorav:transform`). Grouping them under one term
-makes "this value is computed rather than read" a single fact to test, instead of
-five independent flags that every consumer had to check in turn to learn the same
-thing.
-
-A `$name` reference resolves against the other events of the same Thing, so an
-input must itself be an event.
+makes "this value is computed rather than read."
 
 ## Device onboarding & OTAA security
 
@@ -431,17 +422,14 @@ Version 1.1.x uses two root keys, so declare two `apikey` schemes and require bo
 
 ## Examples
 
-The **6 curated example pairs** (`*.td.json` + `*.vectors.json`) in `examples/`
-are checked in and maintained here. This repository is the reference for them:
-they are reviewed like any other source file, and
-[`eclipse-thingweb/examples/TTC26/examples`](https://github.com/eclipse-thingweb/examples/tree/main/TTC26/examples)
-mirrors them for the tutorial rather than the other way round.
+**Some curated example pairs** (`*.td.json` + `*.vectors.json`) in `examples/`
+are checked in and maintained here.
 
 | File | Layout | Highlights |
 |------|--------|-----------|
 | `examples/adeunis-comfort2.td.json` | `fixed` | Smallest complete example: signed temperature, humidity, battery |
-| `examples/milesight-am102.td.json` | `ctv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
-| `examples/em300-zld.td.json` | `tlv` | Tagged uplinks with a `oneOf`-labelled leak state |
+| `examples/milesight-em300-th.td.json` | `ctv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
+| `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `oneOf`-labelled leak state |
 | `examples/dragino-lht65n.td.json` | `ports` | Two fPorts plus status bits via `lorav:bitmask`; OTAA AppKey (1.0.3). Extension-specific alternate paths are a documented gap |
 | `examples/netvox-r718a.td.json` | `ports` | Validated against `TheThingsNetwork/lorawan-devices` vectors; two fPorts, each branching on a `match` discriminator |
 | `examples/generic-lorawan11.td.json` | `fixed` | LoRaWAN 1.1 OTAA with AppKey **and** NwkKey; onboarding metadata |

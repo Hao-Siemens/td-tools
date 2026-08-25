@@ -25,6 +25,8 @@
   "lorav:macVersion": "1.0.2",
   "schema:manufacturer": "Netvox",
   "schema:mpn": "R718A",
+  "schema:version": "2",
+  "schema:softwareVersion": "10",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870_TTN",
   "lorav:payloadLayout": "ports",
@@ -154,9 +156,5 @@
         }
       ]
     }
-  },
-  "version": {
-    "model": "2",
-    "instance": "10"
   }
 }

@@ -74,7 +74,83 @@
         }
       }
     },
-    "em300-zld": {
+    "generic-lorawan11": {
+      "name": "urn_dev_example_generic_lorawan11",
+      "version": 1,
+      "endian": "big",
+      "direction": "uplink",
+      "description": "generic_lorawan11_sensor",
+      "fields": [
+        {
+          "name": "battery",
+          "type": "u8",
+          "unit": "%",
+          "valid_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "name": "temperature",
+          "type": "s16",
+          "mult": 0.1,
+          "unit": "Cel"
+        }
+      ]
+    },
+    "milesight-em300-th": {
+      "name": "urn_dev_milesight_em300_th",
+      "version": 1,
+      "endian": "little",
+      "direction": "uplink",
+      "description": "milesight_em300_th",
+      "fields": [
+        {
+          "tlv": {
+            "tag_fields": [
+              {
+                "name": "channel_id",
+                "type": "u8"
+              },
+              {
+                "name": "channel_type",
+                "type": "u8"
+              }
+            ],
+            "tag_key": [
+              "channel_id",
+              "channel_type"
+            ],
+            "cases": {
+              "[1, 117]": [
+                {
+                  "name": "battery",
+                  "type": "u8",
+                  "unit": "%"
+                }
+              ],
+              "[3, 103]": [
+                {
+                  "name": "temperature",
+                  "type": "s16",
+                  "div": 10,
+                  "unit": "Cel"
+                }
+              ],
+              "[4, 104]": [
+                {
+                  "name": "humidity",
+                  "type": "u8",
+                  "div": 2,
+                  "unit": "%RH"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "milesight-em300-zld": {
       "name": "urn_dev_milesight_em300_zld",
       "version": 1,
       "endian": "little",
@@ -126,82 +202,6 @@
                     "0": "normal",
                     "1": "leak"
                   }
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "generic-lorawan11": {
-      "name": "urn_dev_example_generic_lorawan11",
-      "version": 1,
-      "endian": "big",
-      "direction": "uplink",
-      "description": "generic_lorawan11_sensor",
-      "fields": [
-        {
-          "name": "battery",
-          "type": "u8",
-          "unit": "%",
-          "valid_range": [
-            0,
-            100
-          ]
-        },
-        {
-          "name": "temperature",
-          "type": "s16",
-          "mult": 0.1,
-          "unit": "Cel"
-        }
-      ]
-    },
-    "milesight-am102": {
-      "name": "urn_dev_milesight_am102",
-      "version": 1,
-      "endian": "little",
-      "direction": "uplink",
-      "description": "milesight_am102",
-      "fields": [
-        {
-          "tlv": {
-            "tag_fields": [
-              {
-                "name": "channel_id",
-                "type": "u8"
-              },
-              {
-                "name": "channel_type",
-                "type": "u8"
-              }
-            ],
-            "tag_key": [
-              "channel_id",
-              "channel_type"
-            ],
-            "cases": {
-              "[1, 117]": [
-                {
-                  "name": "battery",
-                  "type": "u8",
-                  "unit": "%"
-                }
-              ],
-              "[3, 103]": [
-                {
-                  "name": "temperature",
-                  "type": "s16",
-                  "div": 10,
-                  "unit": "Cel"
-                }
-              ],
-              "[4, 104]": [
-                {
-                  "name": "humidity",
-                  "type": "u8",
-                  "div": 2,
-                  "unit": "%RH"
                 }
               ]
             }
@@ -306,11 +306,6 @@
       "pollMessageStatus": 0,
       "retransmissionStatus": 0
     },
-    "em300-zld-nominal_reading": {
-      "temperature": 31.4,
-      "humidity": 33.5,
-      "leakage_status": "normal"
-    },
     "generic-lorawan11-nominal_reading": {
       "battery": 85,
       "temperature": 23.5,
@@ -325,13 +320,27 @@
         "battery": "good"
       }
     },
-    "milesight-am102-battery_temp_humidity": {
-      "battery": 90,
-      "temperature": 28.3,
-      "humidity": 40.0
+    "milesight-em300-th-temperature_humidity": {
+      "temperature": 24.8,
+      "humidity": 49.0
     },
-    "milesight-am102-negative_temperature": {
+    "milesight-em300-th-battery_temperature_humidity": {
+      "battery": 100,
+      "temperature": 24.9,
+      "humidity": 49.0
+    },
+    "milesight-em300-th-negative_temperature": {
       "temperature": -2.5
+    },
+    "milesight-em300-zld-nominal_reading": {
+      "temperature": 32.6,
+      "humidity": 32.0,
+      "leakage_status": "normal"
+    },
+    "milesight-em300-zld-nominal_reading_cooler": {
+      "temperature": 31.4,
+      "humidity": 33.5,
+      "leakage_status": "normal"
     },
     "netvox-r718a-official_status_report": {
       "reportType": 1,

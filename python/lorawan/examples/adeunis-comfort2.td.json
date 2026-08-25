@@ -25,6 +25,8 @@
   "lorav:macVersion": "1.0.2",
   "schema:manufacturer": "Adeunis",
   "schema:mpn": "Comfort 2",
+  "schema:version": "1",
+  "schema:softwareVersion": "1",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870_TTN",
   "lorav:payloadLayout": "fixed",
@@ -96,9 +98,5 @@
         }
       ]
     }
-  },
-  "version": {
-    "model": "1",
-    "instance": "1"
   }
 }

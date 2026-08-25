@@ -25,6 +25,8 @@
   "lorav:macVersion": "1.0.3",
   "schema:manufacturer": "Dragino",
   "schema:mpn": "LHT65N",
+  "schema:version": "1.0",
+  "schema:softwareVersion": "1.4",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "ports",
@@ -146,9 +148,5 @@
         }
       ]
     }
-  },
-  "version": {
-    "model": "1.0",
-    "instance": "1.4"
   }
 }

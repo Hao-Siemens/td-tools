@@ -34,6 +34,8 @@
   "lorav:macVersion": "1.1.0",
   "schema:manufacturer": "Example",
   "schema:mpn": "GLW11",
+  "schema:version": "1.0",
+  "schema:softwareVersion": "1.0",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
@@ -76,9 +78,5 @@
         }
       ]
     }
-  },
-  "version": {
-    "model": "1.0",
-    "instance": "1.0"
   }
 }
