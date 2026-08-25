@@ -1,6 +1,6 @@
 {
   "td": "mclimate-mc-button.td.json",
-  "description": "MClimate Multipurpose Button keepalive vectors based on the official TTN codec: battery scaling, thermistor-connectivity bit mapped through lorav:valueMap, 10-bit temperature, and press event code.",
+  "description": "MClimate Multipurpose Button keepalive vectors based on the official codec: battery scaling, thermistor-connectivity bit mapped through lorav:valueMap, 10-bit temperature, and press event code.",
   "vectors": [
     {
       "name": "single_press_connected",

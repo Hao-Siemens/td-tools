@@ -68,7 +68,7 @@
       ]
     },
     "thermistorProperlyConnected": {
-      "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent, so the value map inverts it rather than restating the polarity in prose.",
+      "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent..",
       "data": {
         "type": "boolean"
       },
@@ -96,7 +96,7 @@
       ]
     },
     "sensorTemperature": {
-      "description": "Thermistor temperature in Celsius from byte 3 using the official 0.1C scaling. This example keeps vectors in the common range where byte 2 high temperature bits are zero.",
+      "description": "Thermistor temperature in Celsius from byte 3 using the official 0.1C scaling. ",
       "data": {
         "type": "number",
         "unit": "Cel"
@@ -115,7 +115,7 @@
       ]
     },
     "pressEvent": {
-      "description": "Button press code from byte 4 (1=single, 2=double, 3=triple). Left as the raw code rather than given a lorav:valueMap because the codes start at 1, which the reference interpreter's index-based lookup cannot represent; see 'Known limitations'.",
+      "description": "Button press code from byte 4 (1=single, 2=double, 3=triple). ",
       "data": {
         "type": "integer"
       },

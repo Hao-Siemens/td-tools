@@ -88,20 +88,16 @@ uv run lorawan-wot convert examples/milesight-em300-th.td.json -o examples/gener
 ### Decode an uplink payload
 
 ```bash
-uv run lorawan-wot decode examples/dragino-lht65n.td.json 0B450A8C02DD010A1E --fport 2
+uv run lorawan-wot decode examples/milesight-em300-th.td.json 0175640367F900046862 --fport 85
 # -> {
-#      "batteryVoltage": 2.885,
-#      "temperature": 27.0,
-#      "humidity": 73.3,
-#      "extensionCode": 1,
-#      "pollMessageStatus": 0,
-#      "retransmissionStatus": 0
+#      "battery": 100,
+#      "temperature": 24.9,
+#      "humidity": 49.0
 #    }
 ```
 
 `--fport` is required for a `ports` layout, because the frame port selects which
-layout to apply; without it the interpreter cannot tell which field set the bytes
-belong to. Other layouts ignore it.
+layout to apply; Other layouts ignore it.
 
 ### Use it from Python
 
@@ -321,35 +317,6 @@ the form says which byte on the wire produces which of them:
 }
 ```
 
-This is the one place the binding mints a term for something TD core looks able
-to express, so it is worth saying why. TD core can list the allowed values, and
-above it does. What it has no vocabulary for is the *correspondence* between a
-wire encoding and one of them — which is a fact about the transfer, exactly like
-`lorav:wireType` or `lorav:divisor`, and exactly what a protocol binding is for.
-The WoT [BACnet binding](https://w3c.github.io/wot-binding-templates/bindings/protocols/bacnet/index.html)
-splits it the same way, with `bacv:hasValueMap` pairing `bacv:hasProtocolVal`
-with `bacv:hasLogicalVal` while the data schema keeps a plain `enum`; the
-[Modbus binding](https://w3c.github.io/wot-binding-templates/bindings/protocols/modbus/index.html)
-keeps `modv:type` on the form for the same reason.
-
-It also covers inverted status bits. A `value` may be any JSON type, so a bit
-that is *set* when a sensor is absent maps to `true`/`false` directly instead of
-being flipped arithmetically with `"lorav:multiplier": -1` — see
-`examples/mclimate-mc-button.td.json`. Wire values must start at 0 and be
-contiguous; see [Known limitations](#known-limitations).
-
-Before 0.3.0 this was a `lorav:enum` object keyed by the wire integer. An interim
-0.3.0 draft replaced it with `"oneOf": [{ "const": 0, "title": "dry" }, …]` on the
-data schema, to avoid minting a term at all. That failed at both ends. `const` held
-the wire integer inside the schema of the *decoded* value, so the schema
-described neither: `{"type": "string", "oneOf": [{"const": 0}]}` rejects the
-decoded `"dry"` and the raw `0` alike, and no instance can satisfy it. And it
-left `title` — a display label, with a multi-language `titles` sibling — carrying
-machine-readable data, so translating or rewording a Thing Description silently
-changed what its payloads decoded to. `tests/test_decode.py` now validates every
-vector's decoded value against its own event's `data`, which is the check whose
-absence let that through.
-
 #### Grouped and conditional values
 
 One event always describes one value. Payloads that pack values together or
@@ -364,7 +331,7 @@ branch between them are expressed by giving several events the same locator:
 | A value is derived rather than read from the wire | `lorav:wireType: "number"` + `lorav:derived` |
 
 `lorav:presentWhen` always names the value it depends on in `field`, then gates
-on either a `bit` of it or an exact `value` — never both.
+on either a `bit` of it or an exact `value`.
 
 `lorav:bitmask` must select a *contiguous* range of bits. The base value is read
 once and decoded into every event masking it, and bases wider than one byte
