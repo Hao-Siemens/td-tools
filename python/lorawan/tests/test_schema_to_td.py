@@ -264,6 +264,26 @@ def test_a_value_computed_from_others_is_still_derived():
     assert form[vocab.DERIVED]["ref"] == "$raw"
 
 
+def test_a_sensor_annotation_does_not_take_a_device_out_of_the_catalog():
+    """``sensor`` names which sensor a channel belongs to; it does not decode.
+
+    An unrecognised field key is rejected, on the principle that silently
+    ignoring one risks dropping something that changes the reading. This one
+    cannot: like ``semantic`` and ``ipso`` beside it, it labels the channel's
+    origin and the reference interpreter never consults it. Rejecting it cost 42
+    devices in the next schema library.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "battery", "type": "u8", "unit": "%", "sensor": "internal"}],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    event = td[vocab.EVENTS]["battery"]
+    assert event[vocab.DATA]["unit"] == "%"
+    # Dropped rather than carried: nothing downstream has a use for it.
+    assert "sensor" not in str(event[vocab.FORMS][0])
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

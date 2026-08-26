@@ -63,6 +63,7 @@ _IGNORABLE_FIELD_KEYS: frozenset[str] = frozenset(
         "comment",
         "unece",  # UN/CEFACT unit code; TD core's ``unit`` carries the unit
         "var",  # names a field for later $reference; decoding-neutral here
+        "sensor",  # names the sensor a channel belongs to; an annotation like ``semantic``
     }
 )
 
