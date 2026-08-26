@@ -315,6 +315,56 @@ def test_a_downlink_command_byte_becomes_a_const_on_the_data_schema():
     assert td_to_payload_schema(td)["fields"][0]["value"] == 3
 
 
+def test_a_derived_value_reading_something_the_td_lacks_is_skipped():
+    """A wrong Thing Description is worse than a missing one.
+
+    A derived value names its inputs with ``$name``. Rebuilding a payload schema
+    from the events alone means an input with no event of its own comes back as
+    nothing, and the reference interpreter then evaluates the field against zero.
+    qingping decoded a temperature of -50 where its schema says 359.5.
+
+    Unlike a skip, that failure is invisible: the device is in the catalog and
+    the number is simply wrong. So it is caught after the events are assembled
+    and the device is skipped instead.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {
+                "byte_group": {
+                    "size": 1,
+                    "fields": [
+                        {"name": "_flag", "type": "u8[0:3]"},
+                        {"name": "_count", "type": "u8[4:7]"},
+                    ],
+                }
+            },
+            {"name": "reading", "ref": "$_count", "polynomial": [-50, 0.1]},
+        ],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.INTERNAL_REF
+
+
+def test_an_internal_input_that_does_survive_the_round_trip_is_kept():
+    """The guard is on what the Thing Description carries, not on the name.
+
+    Most `_`-prefixed inputs get an event of their own and resolve correctly.
+    Rejecting on the leading underscore alone cost 22 devices to prevent the one
+    wrong Thing Description above.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "_raw", "type": "u16"},
+            {"name": "reading", "ref": "$_raw", "polynomial": [-50, 0.1]},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    assert td[vocab.EVENTS]["reading"][vocab.FORMS][0][vocab.DERIVED]["ref"] == "$_raw"
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

@@ -116,6 +116,7 @@ class SkipReason(enum.Enum):
     TLV_TAG = "unsupported tlv tag key"
     ENUM_TABLE = "unsupported enum table"
     LENGTH_NOT_FIXED = "length is not a byte count ($variable)"
+    INTERNAL_REF = "derived value reads a value the TD does not carry"
     MALFORMED = "malformed / non-conforming schema"
     OTHER = "other"
 
@@ -141,17 +142,78 @@ def payload_schema_to_td(schema: dict[str, Any], *, source: str) -> dict[str, An
     if not isinstance(schema, dict):
         raise UnsupportedSchemaError("schema is not a mapping", reason=SkipReason.MALFORMED)
     if "ports" in schema:
-        return _ports_td(schema, source)
+        td = _ports_td(schema, source)
+    else:
+        fields = schema.get("fields")
+        if not isinstance(fields, list) or not fields:
+            raise UnsupportedSchemaError(
+                "schema has no top-level 'fields' list", reason=SkipReason.MALFORMED
+            )
+        if len(fields) == 1 and isinstance(fields[0], dict) and "tlv" in fields[0]:
+            td = _tlv_td(schema, source)
+        else:
+            td = _fixed_td(schema, source)
+    _reject_unresolvable_inputs(td.get(vocab.EVENTS) or {})
+    return td
 
-    fields = schema.get("fields")
-    if not isinstance(fields, list) or not fields:
+
+def _referenced_names(descriptor: Any) -> set[str]:
+    """Every ``$name`` a derived-value descriptor reads, at any nesting depth."""
+    found: set[str] = set()
+    if isinstance(descriptor, str):
+        if descriptor.startswith("$"):
+            found.add(descriptor[1:])
+    elif isinstance(descriptor, dict):
+        for value in descriptor.values():
+            found |= _referenced_names(value)
+    elif isinstance(descriptor, list):
+        for item in descriptor:
+            found |= _referenced_names(item)
+    return found
+
+
+def _reject_unresolvable_inputs(events: dict[str, Any]) -> None:
+    """Reject a Thing Description whose derived values read something it lacks.
+
+    A derived value names its inputs with ``$name``. The forward conversion
+    rebuilds a payload schema from the events alone, so an input with no event of
+    its own comes back as nothing and the reference interpreter evaluates the
+    field against zero -- qingping reported a temperature of -50 where its schema
+    says 359.5, because ``$_temp_raw`` was internal scratch state.
+
+    Checked against the assembled events rather than by rejecting every internal
+    name: most internal inputs *do* get an event and resolve correctly, and
+    rejecting on the name alone cost 22 devices to prevent one wrong Thing
+    Description.
+
+    Skipped rather than approximated. A Thing Description that decodes to the
+    wrong number is worse than one that does not exist, and unlike a skip it is
+    invisible in the catalog count.
+    """
+    available = set(events)
+    # An internal input that is a bit range cannot survive the round trip: the
+    # forms are emitted correctly, but rebuilding flattens the byte group into
+    # top-level bit-range fields, and the interpreter does not store a top-level
+    # `_`-prefixed field as a variable. Plain internal scalars are unaffected.
+    masked_internal = {
+        name
+        for name, event in events.items()
+        if name.startswith("_")
+        and any(vocab.BITMASK in form for form in event.get(vocab.FORMS, []))
+    }
+    missing: dict[str, list[str]] = {}
+    for name, event in events.items():
+        for form in event.get(vocab.FORMS, []):
+            referenced = _referenced_names(form.get(vocab.DERIVED))
+            unresolved = sorted((referenced - available) | (referenced & masked_internal))
+            if unresolved:
+                missing.setdefault(name, []).extend(unresolved)
+    if missing:
+        detail = "; ".join(f"{n} reads {sorted(set(refs))}" for n, refs in missing.items())
         raise UnsupportedSchemaError(
-            "schema has no top-level 'fields' list", reason=SkipReason.MALFORMED
+            f"derived value input is not an event: {detail}",
+            reason=SkipReason.INTERNAL_REF,
         )
-
-    if len(fields) == 1 and isinstance(fields[0], dict) and "tlv" in fields[0]:
-        return _tlv_td(schema, source)
-    return _fixed_td(schema, source)
 
 
 # --- layout builders ---------------------------------------------------------
