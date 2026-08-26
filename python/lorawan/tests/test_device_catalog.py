@@ -69,6 +69,12 @@ def _project_field(body: dict) -> tuple:
     for key in ("mult", "div", "add", "length", "unit", "unece"):
         if key in body:
             parts[key] = body[key]
+    # ``remaining`` and a negative count are the same instruction -- read to the
+    # end of the payload -- and the conversion keeps the numeric spelling the
+    # vocabulary can carry. Compared as one value so the round trip is not judged
+    # on which of the two the source happened to use.
+    if isinstance(parts.get("length"), str) and parts["length"].strip().lower() == "remaining":
+        parts["length"] = -1
     if "valid_range" in body:
         parts["valid_range"] = _freeze(body["valid_range"])
     for key in ("ref", "polynomial", "transform", "compute", "guard"):
@@ -208,7 +214,7 @@ _CATALOG = _device_tds()
 #:
 #: Change this number only in the same commit as the change that moves it, so the diff
 #: shows the coverage cost and a reviewer can weigh it.
-EXPECTED_CATALOG_SIZE = 157
+EXPECTED_CATALOG_SIZE = 167
 
 
 def test_catalog_is_not_empty():
@@ -319,9 +325,13 @@ def _field_width(field: dict) -> int:
     if field.get("type") == "skip":
         return int(field.get("length", 0))
     if field.get("type") in ("bytes", "string", "ascii", "hex", "base64"):
-        # Variable-length types declare a byte length; -1 means "consume rest",
-        # which the reference interpreter treats as zero remaining bytes here.
-        return max(0, int(field.get("length", 0)))
+        # Variable-length types declare a byte length; -1 and the keyword
+        # ``remaining`` both mean "consume the rest", which contributes nothing to
+        # a synthesized payload's length because there is nothing after it.
+        length = field.get("length", 0)
+        if isinstance(length, str) and length.strip().lower() == "remaining":
+            return 0
+        return max(0, int(length))
     return _value_width(field["type"])
 
 

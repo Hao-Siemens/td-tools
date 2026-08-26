@@ -108,24 +108,24 @@ def test_value_map_decodes_a_wire_value_to_its_label():
     assert decode_uplink(td, "01")["state"] == "leak"
 
 
-def test_value_map_that_does_not_start_at_zero_is_a_known_gap():
-    """A table whose wire values skip 0 silently loses its highest entries.
+def test_value_map_that_does_not_start_at_zero_resolves_every_entry():
+    """A table whose wire values skip 0 now labels all of them.
 
-    The MultiTech interpreter applies ``lookup`` positionally -- ``if 0 <= value
-    < len(lookup)`` -- so it reads a table as a list indexed by the wire value
-    rather than as a mapping. A table keyed 1..3 therefore has length 3, and wire
-    value 3 falls outside the guard and comes back as the bare integer instead of
-    its label. The binding can express such a table (three RadioBridge rbs30x
-    events in the generated catalog do), so this is pinned rather than asserted
-    away: if a submodule bump ever fixes the interpreter, this test fails and
-    tells us the gap has closed.
+    This was pinned as a known gap. The interpreter applied ``lookup``
+    positionally -- ``if 0 <= value < len(lookup)`` -- reading the table as a list
+    indexed by the wire value, so a table keyed 1..3 had length 3 and wire value 3
+    fell outside the guard and came back as the bare integer. Three RadioBridge
+    rbs30x events in the catalog are keyed that way.
+
+    Bumping the schema submodule closed it: the table is looked up as a mapping.
+    The test is kept, pointed the other way, so the fix cannot regress unnoticed.
     """
     td = _value_map_td([(1, "single"), (2, "double"), (3, "triple")])
 
     assert decode_uplink(td, "01")["state"] == "single"
-    assert decode_uplink(td, "03")["state"] == 3  # not "triple"
+    assert decode_uplink(td, "03")["state"] == "triple"
 
-    # And the gap is detectable rather than silent: the leaked wire value fails
-    # the data schema, which is exactly the check the oneOf/const spelling lacked.
+    # The labels are what the data schema allows, so a decoded value validates.
+    jsonschema.validate(instance="triple", schema=td[vocab.EVENTS]["state"][vocab.DATA])
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(instance=3, schema=td[vocab.EVENTS]["state"][vocab.DATA])
