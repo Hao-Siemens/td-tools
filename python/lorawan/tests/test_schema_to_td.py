@@ -154,6 +154,62 @@ def test_lookup_enum_round_trips_to_strings():
     assert td_to_payload_schema(td)["fields"][0]["lookup"] == {0: "N", 1: "S"}
 
 
+def test_lookup_table_with_a_default_label_is_skipped_not_crashed():
+    """A non-integer table key must skip its device, not abort the whole run.
+
+    A table may carry a ``default`` label covering every value it does not list
+    (PS-269). ``lorav:valueMap`` pairs one wire value with one decoded value and
+    cannot say "anything else", so the field is outside the subset.
+
+    The reason it is a test rather than a note: the key was converted with a bare
+    ``int()``, so the first schema in the library to use ``default`` raised an
+    uncaught ValueError out of the batch script and no catalog was generated at
+    all. A skip loses one device; a crash loses all of them.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "state", "type": "u8", "lookup": {0: "off", 1: "on", "default": "?"}}],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.ENUM_TABLE
+
+
+def test_length_remaining_round_trips_through_the_byte_length_sentinel():
+    """``length: remaining`` converts, rather than taking its device out.
+
+    The form vocabulary carries a byte count, and ``remaining`` is not one, so
+    this used to raise an uncaught ValueError. It is expressible though: the
+    reference interpreter resolves the keyword and any negative length the same
+    way, and the form schema already documents -1 as that sentinel. Mapping it
+    keeps the device; skipping it would not.
+
+    The keyword normalises to the sentinel on the way back, rather than being
+    remembered verbatim. Both spellings decode identically, the numeric one is
+    what the schema library already writes, and it is the form the vocabulary can
+    carry -- so there is one spelling downstream instead of two.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "payload", "type": "hex", "length": "remaining"}],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    form = td[vocab.EVENTS]["payload"][vocab.FORMS][0]
+    assert form[vocab.BYTE_LENGTH] == vocab.BYTE_LENGTH_REMAINING
+    assert td_to_payload_schema(td)["fields"][0]["length"] == vocab.BYTE_LENGTH_REMAINING
+
+
+def test_length_naming_a_variable_is_skipped():
+    """A ``$variable`` length has no implementation to round trip to."""
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "payload", "type": "hex", "length": "$len"}],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.LENGTH_NOT_FIXED
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

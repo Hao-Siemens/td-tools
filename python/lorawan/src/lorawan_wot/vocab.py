@@ -114,6 +114,11 @@ ADDEND: Final = "lorav:addend"  # value + addend (after scaling)
 BITMASK: Final = "lorav:bitmask"  # hex mask, e.g. "0x3FFF"
 BYTE_OFFSET: Final = "lorav:byteOffset"  # fixed-layout position (bytes)
 BYTE_LENGTH: Final = "lorav:byteLength"  # byte length for string/bytes/hex
+#: :data:`BYTE_LENGTH` value meaning "consume the rest of the payload". The
+#: reference interpreter accepts either the keyword ``remaining`` or any negative
+#: integer; the negative form is the sentinel its parsers share, so it is the one
+#: a numeric term can carry.
+BYTE_LENGTH_REMAINING: Final = -1
 TAG: Final = "lorav:tag"  # tlv/ctv case selector, e.g. [3, 103]
 
 #: Scaling terms mapped to their MultiTech field key, in the order the reference

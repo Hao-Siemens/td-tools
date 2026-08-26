@@ -231,6 +231,11 @@ class _Field:
                 f"Event {self.name!r}: type {wire!r} requires "
                 f"{vocab.BYTE_LENGTH!r} to determine its byte width."
             )
+        if int(length) == vocab.BYTE_LENGTH_REMAINING:
+            # Width known only at decode time. Reported as 0 so it does not
+            # advance a fixed-layout cursor by a nonsense amount: a field that
+            # eats the rest of the payload has nothing after it to place.
+            return 0
         return int(length)
 
     # -- MultiTech field body -------------------------------------------------

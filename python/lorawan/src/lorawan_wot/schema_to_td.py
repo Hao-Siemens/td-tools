@@ -107,6 +107,7 @@ class SkipReason(enum.Enum):
     MATCH_CASE_KEY = "non-integer match case key"
     TLV_TAG = "unsupported tlv tag key"
     ENUM_TABLE = "unsupported enum table"
+    LENGTH_NOT_FIXED = "length is not a byte count ($variable)"
     MALFORMED = "malformed / non-conforming schema"
     OTHER = "other"
 
@@ -733,7 +734,13 @@ def _byte_width(base: str, field: dict[str, Any]) -> int:
             f"variable-length type {base!r} on field {field.get('name')!r} needs a length",
             reason=SkipReason.MALFORMED,
         )
-    return int(length)
+    width = _byte_length(length)
+    if width == vocab.BYTE_LENGTH_REMAINING:
+        # Width known only at decode time. Counted as 0 so it does not move the
+        # cursor by a nonsense amount: a field that eats the rest of the payload
+        # has nothing after it to place.
+        return 0
+    return width
 
 
 def _build_form(
@@ -767,7 +774,7 @@ def _build_form(
     if "var" in field:
         form[vocab.ALIAS] = field["var"]
     if "length" in field:
-        form[vocab.BYTE_LENGTH] = int(field["length"])
+        form[vocab.BYTE_LENGTH] = _byte_length(field["length"])
     return form
 
 
@@ -847,6 +854,36 @@ def _wot_type(base: str, field: dict[str, Any]) -> str:
     return "integer"
 
 
+def _is_int_key(key: Any) -> bool:
+    """Whether a lookup table key names an integer value."""
+    try:
+        int(key)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _byte_length(raw: Any) -> int:
+    """Turn a source ``length`` into a :data:`vocab.BYTE_LENGTH` byte count.
+
+    ``length: remaining`` consumes everything from the read position to the end
+    of the payload (PS-014). It becomes ``-1``, the sentinel the form vocabulary
+    already defines for it and the one the reference interpreter maps the keyword
+    onto, so the field converts instead of taking its device out of the catalog.
+
+    A ``$variable`` length is rejected: no implementation of the specification
+    supports it, so there is nothing to round trip to.
+    """
+    if isinstance(raw, str):
+        if raw.strip().lower() == "remaining":
+            return vocab.BYTE_LENGTH_REMAINING
+    if not _is_int_key(raw):
+        raise UnsupportedSchemaError(
+            f"unsupported length {raw!r}", reason=SkipReason.LENGTH_NOT_FIXED
+        )
+    return int(raw)
+
+
 def _enum(field: dict[str, Any]) -> dict[int, Any] | None:
     """Canonicalise a ``values``/``lookup`` table to a ``{int: label}`` mapping."""
     raw = field.get("values", field.get("lookup"))
@@ -855,6 +892,21 @@ def _enum(field: dict[str, Any]) -> dict[int, Any] | None:
     if isinstance(raw, list):
         return dict(enumerate(raw))
     if isinstance(raw, dict):
+        # A table may carry a ``default`` label covering every value it does not
+        # list (PS-269). ``lorav:valueMap`` pairs one wire value with one decoded
+        # value and has no way to say "anything else", so the field cannot round
+        # trip: dropping the key would decode an unmapped value as absent where
+        # the schema names it. Skipped rather than approximated.
+        #
+        # Checked before converting, because the bare ``int(key)`` below raised an
+        # uncaught ValueError that aborted the whole catalog run instead of
+        # skipping the one device -- a crash, not a skip, and only visible once a
+        # schema in the library actually used ``default``.
+        if any(not _is_int_key(key) for key in raw):
+            raise UnsupportedSchemaError(
+                f"enum table has a non-integer key: {sorted(map(str, raw))}",
+                reason=SkipReason.ENUM_TABLE,
+            )
         return {int(key): label for key, label in raw.items()}
     raise UnsupportedSchemaError(f"unsupported enum table {raw!r}", reason=SkipReason.ENUM_TABLE)
 
