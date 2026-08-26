@@ -210,6 +210,60 @@ def test_length_naming_a_variable_is_skipped():
     assert excinfo.value.reason is SkipReason.LENGTH_NOT_FIXED
 
 
+def test_a_wire_field_carrying_a_transform_keeps_its_wire_type_and_width():
+    """``transform`` post-processes a value read from the wire; it is not derived.
+
+    Modelled on decentlab's ``air_temperature``: a ``u16`` whose raw count is
+    scaled after reading. Treating the transform as proof of derivation replaced
+    the wire type with the derived marker, so the field became zero bytes wide,
+    ``humidity`` after it read from offset 0 instead of 2, and the temperature
+    dropped out of the decode entirely.
+
+    Asserted through the byte offsets rather than on the transform alone, because
+    the damage showed up in the *other* fields -- a test that only checked the
+    transform survived would have passed throughout.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {
+                "name": "air_temperature",
+                "type": "u16",
+                "transform": [{"div": 100}, {"add": -327.68}],
+            },
+            {"name": "humidity", "type": "u16"},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+
+    temp_form = td[vocab.EVENTS]["air_temperature"][vocab.FORMS][0]
+    assert temp_form[vocab.WIRE_TYPE] == "u16"
+    assert temp_form[vocab.DERIVED] == {"transform": [{"div": 100}, {"add": -327.68}]}
+    assert temp_form[vocab.BYTE_OFFSET] == 0
+    # The field still occupies its two bytes, so the next one starts after them.
+    assert td[vocab.EVENTS]["humidity"][vocab.FORMS][0][vocab.BYTE_OFFSET] == 2
+
+    # And the stages survive the trip back, or the value would decode unscaled.
+    rebuilt = td_to_payload_schema(td)["fields"]
+    assert rebuilt[0]["type"] == "u16"
+    assert rebuilt[0]["transform"] == [{"div": 100}, {"add": -327.68}]
+
+
+def test_a_value_computed_from_others_is_still_derived():
+    """A field with no wire type to read stays on the derived path."""
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "raw", "type": "u16"},
+            {"name": "ratio", "ref": "$raw", "polynomial": [0, 0.5]},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    form = td[vocab.EVENTS]["ratio"][vocab.FORMS][0]
+    assert form[vocab.WIRE_TYPE] == vocab.COMPUTED_TYPE
+    assert form[vocab.DERIVED]["ref"] == "$raw"
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

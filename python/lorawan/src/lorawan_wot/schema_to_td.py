@@ -24,6 +24,7 @@ caller can skip it and report it, rather than emitting a lossy Thing Description
 from __future__ import annotations
 
 import ast
+import copy
 import enum
 import re
 from typing import Any
@@ -45,6 +46,7 @@ _KNOWN_FIELD_KEYS: frozenset[str] = frozenset(
         "values",
         "lookup",
         "valid_range",
+        "transform",  # post-processing of a value read from the wire
     }
 )
 
@@ -64,12 +66,10 @@ _IGNORABLE_FIELD_KEYS: frozenset[str] = frozenset(
     }
 )
 
-#: Field keys / types that mark a *computed* (derived) value the binding cannot
-#: express, since it is post-processing math rather than a raw wire field.
-_COMPUTED_FIELD_KEYS: frozenset[str] = frozenset(
-    {"ref", "polynomial", "transform", "formula", "compute", "guard", "value"}
-)
-_COMPUTED_FIELD_TYPES: frozenset[str] = frozenset({"number", "bitfield_string"})
+#: Field types the binding has no term for. ``number`` is *not* here: it is the
+#: derived-value marker, which is routed to the computed path rather than
+#: rejected. ``bitfield_string`` renders packed bits as text and has no form term.
+_UNSUPPORTED_FIELD_TYPES: frozenset[str] = frozenset({"bitfield_string"})
 
 #: Derived-value descriptors the binding *does* support (carried verbatim onto a
 #: ``lorav:`` form). ``formula``/``value`` remain unsupported and keep their
@@ -553,27 +553,47 @@ def _check_field_keys(field: dict[str, Any]) -> None:
 
 
 def _reject_computed(field: dict[str, Any]) -> None:
-    """Reject computed/derived fields (post-processing math, not raw wire data)."""
+    """Reject fields the binding has no way to express."""
     if not isinstance(field, dict):
         raise UnsupportedSchemaError(
             f"field is not a mapping: {field!r}", reason=SkipReason.MALFORMED
         )
-    if field.get("type") in _COMPUTED_FIELD_TYPES:
+    if field.get("type") in _UNSUPPORTED_FIELD_TYPES:
         raise UnsupportedSchemaError(
-            f"computed field type {field.get('type')!r}", reason=SkipReason.COMPUTED
+            f"unsupported field type {field.get('type')!r}", reason=SkipReason.COMPUTED
         )
-    computed = _COMPUTED_FIELD_KEYS & field.keys()
-    if computed:
+    if _is_computed_field(field):
+        # A derived field on the scalar path is a routing mistake rather than a
+        # schema outside the subset: every caller checks _is_computed_field first.
         raise UnsupportedSchemaError(
-            f"computed field uses keys: {sorted(computed)}", reason=SkipReason.COMPUTED
+            f"derived field {field.get('name')!r} reached the scalar path",
+            reason=SkipReason.COMPUTED,
         )
+    if "formula" in field:
+        # A free-text expression, which the binding has no term for.
+        raise UnsupportedSchemaError("field uses 'formula'", reason=SkipReason.COMPUTED)
 
 
 def _is_computed_field(field: dict[str, Any]) -> bool:
-    """True when a source field is a derived value rather than a raw wire field."""
+    """True when a source field is a derived value rather than a raw wire field.
+
+    A derived value has nothing to read: either ``type: number``, or no type at
+    all plus a descriptor saying where its value comes from.
+
+    Carrying a descriptor is not itself enough. ``transform`` post-processes a
+    value that *was* read from the wire, and treating any field carrying one as
+    derived replaced its wire type with the derived marker, making it zero bytes
+    wide -- decentlab's ``air_temperature`` (a ``u16`` with
+    ``transform: [{div: 100}, {add: -327.68}]``) then vanished from the generated
+    Thing Description and shifted every field after it. A silently wrong
+    conversion, not a skipped one, so the catalog count stayed quiet about it.
+    """
     if not isinstance(field, dict):
         return False
-    return field.get("type") == vocab.COMPUTED_TYPE or bool(_COMPUTED_DESCRIPTORS & field.keys())
+    ftype = field.get("type")
+    if ftype is None:
+        return bool(_COMPUTED_DESCRIPTORS & field.keys())
+    return ftype == vocab.COMPUTED_TYPE
 
 
 def _computed_event(field: dict[str, Any], **locator: Any) -> dict[str, Any]:
@@ -775,6 +795,13 @@ def _build_form(
         form[vocab.ALIAS] = field["var"]
     if "length" in field:
         form[vocab.BYTE_LENGTH] = _byte_length(field["length"])
+    if "transform" in field:
+        # Post-processing applied to a value that *was* read from the wire. It
+        # lives under lorav:derived because that object names the operation, but
+        # the field keeps its real wire type: it reads bytes and then adjusts
+        # them. The stages run in order, after mult/div/add, so the list is
+        # carried as written.
+        form[vocab.DERIVED] = {"transform": copy.deepcopy(field["transform"])}
     return form
 
 
