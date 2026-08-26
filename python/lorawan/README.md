@@ -97,7 +97,7 @@ uv run lorawan-wot decode examples/milesight-em300-th.td.json 0175640367F9000468
 ```
 
 `--fport` is required for a `ports` layout, because the frame port selects which
-layout to apply; Other layouts ignore it.
+layout to apply; Without it the interpreter cannot select the right field set. Other layouts ignore it.
 
 ### Use it from Python
 
@@ -247,8 +247,7 @@ firmware revisions, and the Thing's `id`/`title` identify the end device.
 For `tlv`/`ctv` you may declare the tag fields at Thing level with
 `lorav:tagFields` (defaults to `channel` + `type`, both `u8`).
 
-`ctv` is currently accepted as an alias and converts identically — the two names describe
-the same tagged structure.
+`ctv` is currently accepted as an alias and converts identically — the two names describe the same tagged structure.
 
 ### Form-level vocabulary (`lorav:` terms)
 
