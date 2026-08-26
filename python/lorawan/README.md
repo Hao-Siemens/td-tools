@@ -230,7 +230,7 @@ it is *transferred*.
 | `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |
 | `NwkKey` | OTAA network root key (1.1.x) — `apikey` scheme `name: "nwkKey"` | **yes (runtime)** |
 
-Device metadata that is not LoRaWAN-specific uses [schema.org](https://schema.org):
+Device metadata that is not LoRaWAN-specific uses established schemas, such as [schema.org](https://schema.org):
 `schema:manufacturer` and `schema:mpn` (the manufacturer's part number) identify
 the model, `schema:version` and `schema:softwareVersion` carry the hardware and
 firmware revisions, and the Thing's `id`/`title` identify the end device.
@@ -257,7 +257,7 @@ The **Tier** column shows how often each term appears across the bundled
 The rare terms exist because the reference schemas model real vendor payloads,
 so you can ignore them until a device needs one.
 
-| Term | Meaning | MultiTech | Tier | Seen in |
+| Term | Meaning | LoRa Alliance Payload Schema / MultiTech | Tier | Seen in |
 |------|---------|-----------|------|---------|
 | `lorav:wireType` | Wire data type (xsd alias or native, e.g. `xsd:short`, `s16`) | `type` | core | every device |
 | `lorav:endian` | Byte order of this multi-byte value, `"big"` (default) or `"little"` | `endian` | core | every multi-byte value |
@@ -294,6 +294,7 @@ Supported `lorav:wireType` values: the sized XSD types (`xsd:byte`, `xsd:short`,
 | a unit code | `"unit": "Cel"` (already carries UN/CEFACT codes) |
 | a valid range | `"minimum": -40, "maximum": 85` |
 | the values a reading may take | `"enum": ["dry", "wet"]` |
+| a byte fixed at one value (e.g. a downlink command byte) | `"const": 3` |
 | manufacturer / part number | `"schema:manufacturer"`, `"schema:mpn"` on the Thing |
 | hardware / firmware version | `"schema:version"`, `"schema:softwareVersion"` on the Thing |
 
@@ -332,10 +333,10 @@ branch between them are expressed by giving several events the same locator:
 | A value belongs to one branch of a discriminator | `lorav:presentWhen: { "field": "event", "value": 1 }` |
 | A value is derived rather than read from the wire | `lorav:wireType: "number"` + `lorav:derived` |
 
-`lorav:presentWhen` always names the value it depends on in `field`, then gates
+`lorav:presentWhen` names the value it depends on in `field`, then gates
 on either a `bit` of it or an exact `value`.
 
-`lorav:bitmask` must select a *contiguous* range of bits. The base value is read
+`lorav:bitmask` selects a *contiguous* range of bits. The base value is read
 once and decoded into every event masking it, and bases wider than one byte
 (`u16`/`u24`/`u32`) work too, for ranges spanning several bytes.
 
@@ -343,9 +344,15 @@ once and decoded into every event masking it, and bases wider than one byte
 
 Some values a device reports are never transmitted. The payload carries a raw
 count and the vendor's documentation gives the arithmetic that turns it into the
-quantity the user asked for, or the value is computed from two other readings.
+quantity the user needs, such as, a value is computed from two other sensor readings.
 Such a value occupies **zero payload bytes**, which is what `lorav:wireType:
 "number"` records — there is no wire type, because there is nothing to read.
+
+`transform` is the exception. It post-processes a value that *was* read from the
+wire, so it sits next to a real `lorav:wireType` and `lorav:byteOffset` rather
+than replacing them. A `lorav:derived` carrying only `transform` keeps its wire
+type; one carrying `ref`, `polynomial`, `compute` or `guard` declares
+`"number"`.
 
 `lorav:derived` is one object with up to five keys, each naming *where the value
 comes from*. They apply in this order:
@@ -357,6 +364,8 @@ comes from*. They apply in this order:
 | `compute` | A binary operation `{ "op": "div", "a": …, "b": … }` over two values or constants |
 | `guard` | A precondition `{ "when": [ … ], "else": v }`; the value falls back to `v` when a `when` clause fails |
 | `transform` | Ordered post-processing steps, each one of `add` / `div` / `mult` / `round` |
+
+Examples: 
 
 Decentlab's 5TM soil sensor transmits a raw dielectric permittivity and
 documents a fourth-order fit for the water content derived from it:
@@ -496,7 +505,7 @@ fails on a fresh clone until you run the generator once.
   generation from the reference device schemas — across all four layouts and the
   `flagged` / `match` / `byte_group` / computed shapes (the
   [device catalog](#device-catalog)).
-* **Later:** downlink and actions (write/invoke); `formula`/`value`-style computed
+* **Later:** downlink and actions (write/invoke); `formula`-style computed
   fields; per-`fPort` branched codec generation; further payload layouts.
 
 ### Known limitations
@@ -505,9 +514,12 @@ The binding covers most common fixed/ports/TLV layouts, but these gaps remain:
 
 * **Arrays / nested object payloads** — dynamic `repeat` structures and
   object/array field values are not representable as flat TD events.
-* **Legacy computed-field forms** — the structured descriptors
+* **`formula` expressions** — the structured descriptors
   (`ref`/`polynomial`/`transform`/`compute`/`guard`) are supported, but raw
-  `formula`/literal-`value` expressions in source schemas are not converted.
+  `formula` expressions in source schemas are not converted.
+* **`bitfield_string` fields** — a field rendering packed bits as text has no
+  form term and takes its device out of the catalog. Affects 36 Milesight
+  schemas, which adopted the type in the current submodule pin.
 * **TLV variants outside `tag_fields` style** — `tag_size`/length-prefixed TLV
   forms and some non-standard tag-key encodings are not converted.
 * **Match defaults** — explicit enumerated `match` cases are supported (including
@@ -516,11 +528,6 @@ The binding covers most common fixed/ports/TLV layouts, but these gaps remain:
 * **Alternate source branches** — when one output field switches to a different
   byte source under an extension/status flag (Dragino `Ext`-style), only the
   common path is modeled.
-* **`lorav:valueMap` tables must start at 0 and be contiguous** — the reference
-  interpreter indexes the table positionally (`0 <= value < len(table)`), so a
-  table keyed 1–3 drops its last entry: wire value 3 decodes to `3` rather than
-  its label. Affects three RadioBridge `rbs30x` events. The leaked integer fails
-  the event's own `data` schema, so it is at least detectable.
 * **TS013 JS generator shared-byte gap** — `generate_ts013_codec.py` can drop
   bare bit-range fields and fail to advance the cursor correctly. This affects
   generated JavaScript only; `lorawan-wot decode` remains correct.
