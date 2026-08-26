@@ -284,6 +284,37 @@ def test_a_sensor_annotation_does_not_take_a_device_out_of_the_catalog():
     assert "sensor" not in str(event[vocab.FORMS][0])
 
 
+def test_a_downlink_command_byte_becomes_a_const_on_the_data_schema():
+    """``value`` fixes a byte when *encoding*; it does not compute anything.
+
+    It had been read as a derived-value descriptor, which took the field's device
+    out of the catalog -- 45 of them, since nearly every downlink command in the
+    schema library identifies itself with a fixed category and command byte.
+
+    The reference interpreter does not use ``value`` when decoding: it reads the
+    byte and reports what the payload actually contained. So the field is an
+    ordinary scalar that happens to be constrained, and TD core's ``const``
+    already says that. A binding term would have been the wrong place -- the
+    constraint is a fact about the value, not about how it is transferred.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "category", "type": "u8", "value": 3},
+            {"name": "interval", "type": "u16", "unit": "s"},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+
+    category = td[vocab.EVENTS]["category"]
+    assert category[vocab.DATA]["const"] == 3
+    # Still a real byte on the wire, so the field after it is not shifted.
+    assert category[vocab.FORMS][0][vocab.WIRE_TYPE] == "u8"
+    assert td[vocab.EVENTS]["interval"][vocab.FORMS][0][vocab.BYTE_OFFSET] == 1
+
+    assert td_to_payload_schema(td)["fields"][0]["value"] == 3
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

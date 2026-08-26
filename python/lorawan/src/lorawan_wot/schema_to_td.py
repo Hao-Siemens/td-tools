@@ -47,6 +47,13 @@ _KNOWN_FIELD_KEYS: frozenset[str] = frozenset(
         "lookup",
         "valid_range",
         "transform",  # post-processing of a value read from the wire
+        # A byte fixed at this value when *encoding*. It is not a derived value:
+        # the reference interpreter ignores it when decoding, reading the byte and
+        # reporting what the payload actually held. Every downlink command in the
+        # schema library declares its category and command bytes that way, so
+        # treating it as unconvertible cost 45 devices. It rides on the event's
+        # data schema as ``const``; see _data_schema.
+        "value",
     }
 )
 
@@ -73,8 +80,8 @@ _IGNORABLE_FIELD_KEYS: frozenset[str] = frozenset(
 _UNSUPPORTED_FIELD_TYPES: frozenset[str] = frozenset({"bitfield_string"})
 
 #: Derived-value descriptors the binding *does* support (carried verbatim onto a
-#: ``lorav:`` form). ``formula``/``value`` remain unsupported and keep their
-#: fields out of the convertible subset.
+#: ``lorav:`` form). ``formula`` remains unsupported and keeps its fields out of
+#: the convertible subset.
 _COMPUTED_DESCRIPTORS: frozenset[str] = frozenset(
     {"ref", "polynomial", "transform", "compute", "guard"}
 )
@@ -866,6 +873,12 @@ def _data_schema(wot_type: str, field: dict[str, Any]) -> dict[str, Any]:
             if label not in labels:
                 labels.append(label)
         data["enum"] = labels
+    if "value" in field:
+        # A byte the device always sends with this value -- a command or category
+        # identifier on a downlink. TD core's ``const`` says exactly that, so no
+        # binding term is needed: it constrains what the value may be, which is a
+        # fact about the data rather than about how it is transferred.
+        data["const"] = field["value"]
     return data
 
 

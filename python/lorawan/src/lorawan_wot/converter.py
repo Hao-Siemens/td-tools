@@ -313,6 +313,11 @@ class _Field:
             field["lookup"] = lookup
         if (valid_range := self._valid_range()) is not None:
             field["valid_range"] = valid_range
+        if (const := self.data.get("const")) is not None:
+            # The byte an encoder must emit. Decoding ignores it -- the
+            # interpreter reports whatever the payload held -- so this only has to
+            # survive the round trip.
+            field["value"] = const
 
     def _lookup(self) -> dict[int, Any] | None:
         """Build the interpreter's ``lookup`` table from the form's value map.
