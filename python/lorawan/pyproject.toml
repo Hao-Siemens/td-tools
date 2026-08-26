@@ -1,6 +1,6 @@
 [project]
 name = "lorawan-wot"
-version = "0.1.0"
+version = "0.3.0"
 description = "Convert W3C WoT Thing Descriptions with LoRaWAN payload bindings into LoRa-Alliance payload schemas and decode device uplinks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,4 +49,4 @@ select = ["E", "F", "I", "B", "C4", "UP", "N", "W"]
 testpaths = ["tests"]
 
 [project.urls]
-Source = "https://github.com/eclipse-thingweb/td-tools/tree/main/node/python/lorawan"
+Source = "https://github.com/eclipse-thingweb/td-tools/tree/main/python/lorawan"

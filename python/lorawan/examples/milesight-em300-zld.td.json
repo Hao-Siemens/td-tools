@@ -2,7 +2,8 @@
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
     {
-      "lorav": "https://www.w3.org/2024/wot/lorawan#"
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
     }
   ],
   "@type": "Thing",
@@ -18,101 +19,107 @@
   },
   "security": "otaa_sc",
   "base": "lorawan://0000000000000000/{appKey}/device",
-  "lorav:endDeviceId": "milesight-em300-zld-01",
   "lorav:devEUI": "0000000000000000",
   "lorav:joinEUI": "0000000000000000",
   "lorav:macVersion": "1.0.2",
-  "lorav:brand": "Milesight",
-  "lorav:model": "EM300-ZLD",
-  "lorav:hardwareVersion": "1",
-  "lorav:softwareVersion": "1",
+  "schema:manufacturer": "Milesight",
+  "schema:mpn": "EM300-ZLD",
+  "schema:version": "1",
+  "schema:softwareVersion": "1",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870_TTN",
   "lorav:payloadLayout": "tlv",
-  "properties": {
+  "events": {
     "battery": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:tag": [
             1,
             117
           ],
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": false
+          "lorav:wireType": "u8"
         }
       ]
     },
     "temperature": {
-      "type": "number",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "number"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:tag": [
             3,
             103
           ],
-          "lorav:type": "s16",
-          "lorav:mostSignificantByte": false,
+          "lorav:wireType": "s16",
+          "lorav:endian": "little",
           "lorav:divisor": 10
         }
       ]
     },
     "humidity": {
-      "type": "number",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "number"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:tag": [
             4,
             104
           ],
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": false,
+          "lorav:wireType": "u8",
           "lorav:divisor": 2
         }
       ]
     },
     "leakage_status": {
-      "type": "string",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "leak"
+        ]
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:tag": [
             5,
             0
           ],
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": false,
-          "lorav:enum": {
-            "0": "normal",
-            "1": "leak"
-          }
+          "lorav:wireType": "u8",
+          "lorav:valueMap": [
+            {
+              "wireValue": 0,
+              "value": "normal"
+            },
+            {
+              "wireValue": 1,
+              "value": "leak"
+            }
+          ]
         }
       ]
     }

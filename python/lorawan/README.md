@@ -1,22 +1,25 @@
 # LoRaWAN binding for WoT Thing Descriptions
 
-This project lets you describe a LoRaWAN sensor with a **W3C Web of Things (WoT)
-Thing Description (TD)** and automatically turn it into a working **payload
-codec**. We have validated the generated codec in ChirpStack to decode uplink payloads into JSON values. It should also work in The Things Network (TTN).
+Describe a LoRaWAN sensor once as a **W3C Web of Things (WoT) Thing Description
+(TD)** and get a working **payload codec** out of it. The generated codec is
+validated against ChirpStack; it should also work in The Things Network (TTN).
 
-The TD carries the payload binding *inside its property forms* (using
+The TD carries the payload binding *inside its event forms* (using
 terms prefixed with `lorav:`). A converter translates that TD into the
 [LoRa Alliance Payload Schema / MultiTech](https://github.com/MultiTechSystems/device-payload-schema)
-language, and the reference interpreter (e.g. ChirpStack) does the actual byte decoding.
+language, where the reference interpreter converts it into decoding functions. These functions can then be used in the LoRaWAN server (e.g. ChirpStack / TTN) for actual byte decoding.
 
 ```
 Thing Description (.td.json)
-        │   lorav: terms on each property form
+        │   lorav: terms on each event form
         ▼
   td_to_payload_schema()        ← this project
         │   MultiTech payload schema (YAML/dict)
         ▼
   Referenced SchemaInterpreter   ← pinned git submodule
+        │
+        ▼
+  Decoder functions   ← LoRaWAN network server (ChirpStack / TTN)
         │
         ▼
   Decoded values  { "temperature": 28.3, ... }
@@ -27,17 +30,18 @@ Thing Description (.td.json)
 * **One source of truth** – the TD holds both the WoT abstraction *and* the
   payload binding.
 * **No reinvented codec** – decoding is delegated to the referenced interpreter.
-* **Real layouts** – supports fixed binary layouts, per-`fPort` layouts, and
-  channel/type/value or type/length/value (TLV) payloads.
-
-## Requirements
-
-* [uv](https://docs.astral.sh/uv/) (Python project & environment manager)
-* Python 3.11+
 
 ## Setup
 
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
+
+All commands must be run from the **`python/lorawan/`** subdirectory, where
+`pyproject.toml` lives.
+
 ```bash
+# 0. Enter the project directory
+cd python/lorawan
+
 # 1. Get the LoRa Alliance Payload / MultiTech interpreter (pinned submodule)
 git submodule update --init --recursive
 
@@ -57,13 +61,16 @@ src/lorawan_wot/
 vocab/
   ontology.ttl            # RDF vocabulary
   context.jsonld          # JSON-LD context for the lorav: namespace
-  lorawan-form.schema.json  # JSON Schema for LoRaWAN property forms
+  lorawan-form.schema.json  # JSON Schema for LoRaWAN event forms
   lorawan-thing.schema.json  # JSON Schema for Thing-level OTAA / onboarding terms
-examples/         # curated TD examples + vectors + generated artifacts
-  devices/        # TD catalog generated from the reference device schemas
+examples/         # curated TDs and their test vectors (checked in)
+  devices/        # TD catalog generated from the reference device schemas (git-ignored)
   generated/      # output folder for generated schema/codec artifacts
 scripts/
   generate_device_tds.py  # batch-generate the examples/devices/ catalog
+  migrate_td_to_events.py # rewrite a pre-0.3.0 TD into the events model
+  vocab_usage_report.py   # count lorav: term usage across every bundled TD
+  update_golden.py        # re-record the golden snapshot
 tests/            # converter, decode, schema-validation, and catalog tests
 external/device-payload-schema/   # MultiTech interpreter (pinned git submodule)
 ```
@@ -73,117 +80,91 @@ external/device-payload-schema/   # MultiTech interpreter (pinned git submodule)
 ### Convert a Thing Description into a payload schema
 
 ```bash
-uv run lorawan-wot convert examples/milesight-am102.td.json
+uv run lorawan-wot convert examples/milesight-em300-th.td.json
 # write to a file instead of stdout:
-uv run lorawan-wot convert examples/milesight-am102.td.json -o am102.schema.yaml
+uv run lorawan-wot convert examples/milesight-em300-th.td.json -o examples/generated/em300-th.schema.yaml
 ```
 
 ### Decode an uplink payload
 
 ```bash
-uv run lorawan-wot decode examples/dragino-lht65n.td.json 0B450A8C02DD010A1E --fport 2
+uv run lorawan-wot decode examples/milesight-em300-th.td.json 0175640367F900046862 --fport 85
 # -> {
-#      "batteryVoltage": 2.885,
-#      "temperature": 27.0,
-#      "humidity": 73.3,
-#      "extensionCode": 1,
-#      "pollMessageStatus": 0,
-#      "retransmissionStatus": 0
+#      "battery": 100,
+#      "temperature": 24.9,
+#      "humidity": 49.0
 #    }
 ```
 
-For a `ports` layout, don't forget to pass the frame port:
-
+`--fport` is required for a `ports` layout, because the frame port selects which
+layout to apply; Without it the interpreter cannot select the right field set. Other layouts ignore it.
 
 ### Use it from Python
 
 ```python
 import json
+
 import yaml
+
 from lorawan_wot import payload_schema_to_td, td_to_payload_schema
 from lorawan_wot.decode import decode_uplink
 
-td = json.load(open("examples/milesight-am102.td.json"))
+with open("examples/milesight-em300-th.td.json", encoding="utf-8") as fp:
+    td = json.load(fp)
 
-schema = td_to_payload_schema(td)            # TD  -> MultiTech schema (dict)
-data = decode_uplink(td, "01755A03671B01046850")
-print(data)  # {'battery': 90, 'temperature': 28.3, 'humidity': 40.0}
+schema = td_to_payload_schema(td)  # TD -> MultiTech schema (dict)
+print(decode_uplink(td, "0175640367F900046862"))
+# {'battery': 100, 'temperature': 24.9, 'humidity': 49.0}
 
 # The reverse direction: MultiTech schema -> Thing Description.
-source = yaml.safe_load(open("external/device-payload-schema/schemas/devices/makerfabs/ath20.yaml"))
-generated_td = payload_schema_to_td(source, source="ath20.yaml")
+source_path = "external/device-payload-schema/schemas/devices/makerfabs/ath20.yaml"
+with open(source_path, encoding="utf-8") as fp:
+    generated_td = payload_schema_to_td(yaml.safe_load(fp), source="ath20.yaml")
 ```
 
-For production code, prefer context managers (`with open(...)`) and explicit
-`encoding="utf-8"` when reading files.
+### Generate a ChirpStack / TTN JavaScript codec
+
+`lorawan-wot decode` uses the Python reference interpreter. To run a codec inside
+a network server instead, feed the converted schema to one of the two generator
+scripts shipped by the submodule:
+
+| Your schema | Generator | Output |
+|-------------|-----------|--------|
+| `fixed` only, **no** `ports`/`tlv`/`ctv` branching | `generate_js_decoder.py` | `*_decoder.js` |
+| Everything else (`ports`, `tlv`/`ctv`, `flagged`, `match`, `enum`) | `generate_ts013_codec.py` | `*_codec.js` |
+
+When in doubt, use `generate_ts013_codec.py`.
+
+```bash
+# 1. TD -> schema
+uv run lorawan-wot convert examples/netvox-r718a.td.json -o examples/generated/netvox-r718a.schema.yaml
+
+# 2. schema -> JS codec
+uv run python external/device-payload-schema/tools/generate_ts013_codec.py
+  examples/generated/netvox-r718a.schema.yaml -o examples/generated
+# -> examples/generated/netvox_r718a.schema_codec.js
+```
+
+Paste the generated file into **ChirpStack → Device profile → Codec → JavaScript
+functions** (or the equivalent TTN payload formatter). The generated JavaScript
+can differ from `lorawan-wot decode` in unsupported edge cases; see
+[Known limitations](#known-limitations).
 
 ### Generate a Thing Description from a payload schema
 
-The reverse of `convert`: turn an existing MultiTech / LoRa Alliance payload
+The reverse of `convert`: turn an existing LoRa Alliance / MultiTech payload
 schema into a starter Thing Description.
 
 ```bash
 uv run lorawan-wot generate external/device-payload-schema/schemas/devices/makerfabs/ath20.yaml -o examples/devices/makerfabs/ath20.td.json
 ```
 
-This is how to generat a bundled [device catalog](#device-catalog).
-
-
-## Generate a ChirpStack / TTN JavaScript codec
-
-The reference MultiTech schema produced from a TD can be turned into a self-contained
-`decodeUplink(input)` JavaScript codec (for ChirpStack / TTN).
-
-**Quick rule**
-1. Use `generate_ts013_codec.py` by default.
-2. Use `generate_js_decoder.py` only for simple `fixed` schemas with top-level `fields` and no `fPort` dispatch.
-
-| Layout | Generator | Output file |
-|--------|-----------|-------------|
-| `fixed` only, **no** `ports`/`tlv`/`ctv` branching | `generate_js_decoder.py` | `*_decoder.js` |
-| `ports`, `tlv` / `ctv` (fPort dispatch, channel/tag cases, `flagged`, `match`, `enum`) | `generate_ts013_codec.py` | `*_codec.js` |
-
-**Important notes**
-- `generate_js_decoder.py` does not support top-level `ports`.
-- `generate_ts013_codec.py` supports `ports`/`tlv`/`match`, but can still have edge-case gaps (see [Known limitations](#known-limitations)).
-- `lorawan-wot decode` uses the Python reference interpreter (`SchemaInterpreter`); generated JS behavior can differ in unsupported edge cases.
-- It does **not** call `generate_ts013_codec.py` or `generate_js_decoder.py`.
-- Use those generator scripts only when you need a standalone JavaScript codec file.
-
-### Ports + match layout (e.g. Netvox R718A)
-
-```bash
-# TD -> schema
-uv run lorawan-wot convert examples/netvox-r718a.td.json -o examples/generated/netvox-r718a.schema.yaml
-
-# schema -> JS codec
-uv run python external/device-payload-schema/tools/generate_ts013_codec.py examples/generated/netvox-r718a.schema.yaml -o examples/generated
-# -> examples/generated/netvox_r718a.schema_codec.js
-```
-
-This is the recommended path for `ports` and `match` devices.
-
-### TLV / channel layout (e.g. Milesight EM300-ZLD)
-
-```bash
-# TD -> schema
-uv run lorawan-wot convert examples/em300-zld.td.json -o examples/generated/em300-zld.schema.yaml
-
-# schema -> JS codec
-uv run python external/device-payload-schema/tools/generate_ts013_codec.py examples/generated/em300-zld.schema.yaml -o examples/generated
-# -> examples/generated/em300_zld.schema_codec.js
-```
-
-Paste the generated `*_decoder.js` / `*_codec.js` into **ChirpStack → Device
-profile → Codec → JavaScript functions** (or the equivalent TTN payload
-formatter).
-
-
+This is how the bundled [device catalog](#device-catalog) is produced.
 
 ## How to describe a device in a TD
 
 Add the binding namespace to `@context`, set a Thing-level layout, and put a
-field descriptor on each property's form.
+field descriptor on each event's form.
 
 ```jsonc
 {
@@ -191,17 +172,38 @@ field descriptor on each property's form.
     "https://www.w3.org/2022/wot/td/v1.1",
     { "lorav": "https://www.w3.org/2024/wot/lorawan#" }
   ],
+  "@type": "Thing",
+  "id": "urn:dev:example:env-sensor",
+  "title": "Environmental Sensor",
+  "description": "Environmental Sensor with temperature, humidity, and battery packed at fixed byte positions.",
+  "securityDefinitions": {
+    "otaa_sc": {
+      "scheme": "apikey",
+      "in": "uri",
+      "name": "appKey",
+      "description": "LoRaWAN OTAA AppKey. Injected at runtime."
+    }
+  },
+  "security": "otaa_sc",
+  "lorav:devEUI": "0000000000000001",
+  "lorav:joinEUI": "0000000000000000",
+  "lorav:macVersion": "1.0.3",
+  "lorav:region": "EU868",
+  "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",          // fixed | ports | tlv | ctv
-  "properties": {
+  "events": {
     "temperature": {
-      "type": "number",
-      "unit": "Cel",
+      "data": {                             // what the notification carries
+        "type": "number",
+        "unit": "Cel"
+      },
       "forms": [
         {
           "href": "uplink",
+          "op": ["subscribeevent", "unsubscribeevent"],
           "lorav:byteOffset": 2,            // where in the payload
-          "lorav:type": "xsd:short",        // wire data type
-          "lorav:mostSignificantByte": true,
+          "lorav:wireType": "xsd:short",    // wire data type
+          "lorav:endian": "big",            // big (default) | little
           "lorav:multiplier": 0.01          // raw * 0.01
         }
       ]
@@ -210,10 +212,34 @@ field descriptor on each property's form.
 }
 ```
 
+Here, `data` says what the value *means*, the `form` says how
+it is *transferred*. 
+
+
+### Thing-level vocabulary
+
+| Term | Meaning | Secret? |
+|------|---------|---------|
+| `lorav:devEUI` | 8-byte device identifier (16 hex chars) | no |
+| `lorav:joinEUI` | 8-byte join/app identifier (formerly AppEUI) | no |
+| `lorav:macVersion` | LoRaWAN MAC version, e.g. `1.0.3`, `1.1.0` | no |
+| `lorav:region` | Regulatory region / profile (e.g. `EU868`) | no |
+| `lorav:frequencyPlan` | LNS frequency plan id (e.g. `EU_863_870_TTN`) | no |
+| `lorav:payloadLayout` | Payload structure: `fixed`, `ports`, `tlv` or `ctv` | no |
+| `lorav:tagFields` | Tag field definitions for `tlv`/`ctv` layouts | no |
+| `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |
+| `NwkKey` | OTAA network root key (1.1.x) — `apikey` scheme `name: "nwkKey"` | **yes (runtime)** |
+
+Device metadata that is not LoRaWAN-specific uses [schema.org](https://schema.org):
+`schema:manufacturer` and `schema:mpn` (the manufacturer's part number) identify
+the model, `schema:version` and `schema:softwareVersion` carry the hardware and
+firmware revisions, and the Thing's `id`/`title` identify the end device.
+
+
 ### Payload layouts
 
-| `lorav:payloadLayout` | When to use | Required per-property terms |
-|-----------------------|-------------|-----------------------------|
+| `lorav:payloadLayout` | When to use | Required per-event terms |
+|-----------------------|-------------|--------------------------|
 | `fixed` | Every value sits at a fixed byte position | `lorav:byteOffset` |
 | `ports` | The LoRaWAN `fPort` selects a fixed layout | `lorav:fPort`, `lorav:byteOffset` |
 | `tlv` / `ctv` | Values are tagged (e.g. channel + type) | `lorav:tag` |
@@ -221,56 +247,153 @@ field descriptor on each property's form.
 For `tlv`/`ctv` you may declare the tag fields at Thing level with
 `lorav:tagFields` (defaults to `channel` + `type`, both `u8`).
 
-### Form vocabulary (`lorav:` terms)
-| Term | Meaning | Maps to (MultiTech) |
-|------|---------|---------------------|
-| `lorav:type` | Wire data type (xsd alias or native, e.g. `xsd:short`, `s16`) | `type` |
-| `lorav:mostSignificantByte` | `true` = big-endian, `false` = little-endian | `endian` |
-| `lorav:multiplier` | `value = raw * multiplier` | `mult` |
-| `lorav:divisor` | `value = raw / divisor` | `div` |
-| `lorav:offset` | `value = value + offset` (after scaling) | `add` |
-| `lorav:bitmask` | Extract a contiguous bit range (single- or multi-byte base) | bit range `u8[lo:hi]` |
-| `lorav:byteOffset` | Byte position in a fixed layout | field order / `skip` padding |
-| `lorav:fPort` | LoRaWAN frame port | `ports` key |
-| `lorav:tag` | Tag selecting a value, e.g. `[3, 103]` | `tlv` case key |
-| `lorav:length` | Byte length for `bytes`/`string`/`hex` (`-1` = consume rest) | `length` |
-| `lorav:unece` | UN/CEFACT unit code | `unece` |
-| `lorav:enum` | Map raw integers to labels | `values` |
-| `lorav:slot` | Order of a property within its group (multi-field TLV / flagged / match) | field order |
-| `lorav:presenceField` | Name of the bit-flags property that gates this property | `flagged.field` |
-| `lorav:presenceBit` | Bit index in `presenceField` that must be set for this property to appear | `flagged.groups[*].bit` |
-| `lorav:switchField` | Name of the discriminator property that selects this property's case | `match.field` |
-| `lorav:switchValue` | Value of `switchField` under which this property appears | `match.cases` key |
-| `lorav:var` | Discriminator alias, referenced as `$var` when the `match` field name differs from the property name | `var` |
-| `lorav:padBefore` | Reserved bytes consumed before this property within its group | `skip` inside a case |
-| `lorav:ref` | Input value a computed property derives from, as `$name` | `ref` |
-| `lorav:polynomial` | Coefficient list evaluated as `c0 + c1*x + c2*x² + …` | `polynomial` |
-| `lorav:transform` | Ordered post-processing ops (`add`/`div`/`mult`) applied to a derived value | `transform` |
-| `lorav:compute` | Binary operation `{op, a, b}` combining two values | `compute` |
-| `lorav:guard` | Conditional gate `{when, else}` selecting a derived value | `guard` |
+`ctv` is currently accepted as an alias and converts identically — the two names describe the same tagged structure.
 
-Supported `lorav:type` values: the sized XSD types (`xsd:byte`, `xsd:short`,
+### Form-level vocabulary (`lorav:` terms)
+
+The **Tier** column shows how often each term appears across the bundled
+[device catalog](#device-catalog): **core** is needed by almost every device,
+**common** by a recognisable class of them, and **rare** by only a few.
+The rare terms exist because the reference schemas model real vendor payloads,
+so you can ignore them until a device needs one.
+
+| Term | Meaning | MultiTech | Tier | Seen in |
+|------|---------|-----------|------|---------|
+| `lorav:wireType` | Wire data type (xsd alias or native, e.g. `xsd:short`, `s16`) | `type` | core | every device |
+| `lorav:endian` | Byte order of this multi-byte value, `"big"` (default) or `"little"` | `endian` | core | every multi-byte value |
+| `lorav:byteOffset` | Byte position in a fixed layout | field order / `skip` padding | core | `fixed` + `ports` devices |
+| `lorav:tag` | Tag selecting a value, e.g. `[3, 103]` | `tlv` case key | core | Milesight, Elsys |
+| `lorav:fPort` | LoRaWAN frame port | `ports` key | core | `ports` devices (e.g. Digital Matter) |
+| `lorav:divisor` | `value = raw / divisor` | `div` | core | most vendors |
+| `lorav:slot` | Order of an event within its group (multi-field TLV / flagged / match) | field order | common | any multi-value group |
+| `lorav:presentWhen` | Condition gating this value: `{ field, bit }` or `{ field, value }` | `flagged` / `match` | common | Decentlab, Dragino, Netvox, RadioBridge, Radionode |
+| `lorav:bitmask` | Extract a contiguous bit range (single- or multi-byte base) | bit range `u8[lo:hi]` | common | Dragino, Digital Matter, MClimate, RadioBridge, RAKwireless |
+| `lorav:valueMap` | Map each wire integer to the value it denotes: `[{ wireValue, value }, …]` | `lookup` | rare | Milesight, MClimate, RadioBridge, Makerfabs |
+| `lorav:addend` | `value = value + addend` (after scaling) | `add` | common | Decentlab, MClimate, RadioBridge |
+| `lorav:multiplier` | `value = raw * multiplier` | `mult` | common | Decentlab, Digital Matter, MClimate |
+| `lorav:derived` | Computed value: `{ ref, polynomial, compute, guard, transform }` | `ref`/`polynomial`/… | rare | Decentlab, Digital Matter, MClimate |
+| `lorav:alias` | Name this value is referenced by as `$alias`, when a condition's `field` differs from the event name | `var` | rare | RadioBridge, Radionode |
+| `lorav:byteLength` | Byte length for `bytes`/`string`/`hex` (`-1` = consume rest) | `length` | rare | RadioBridge |
+| `lorav:padBefore` | Reserved bytes consumed before this value within its group | `skip` inside a case | rare | RadioBridge |
+
+`lorav:multiplier` and `lorav:divisor` are mutually exclusive. Prefer
+`lorav:divisor`: `{"lorav:divisor": 100}`, while the equivalent
+`{"lorav:multiplier": 0.01}` is not representable in binary floating point and
+accumulates error.
+
+Supported `lorav:wireType` values: the sized XSD types (`xsd:byte`, `xsd:short`,
 `xsd:int`, `xsd:long`, the `xsd:unsigned*` variants, `xsd:float`, `xsd:double`,
 `xsd:boolean`, `xsd:hexBinary`, `xsd:string`) and the native MultiTech types
 (`u8`–`u64`, `s8`–`s64`, `f16`/`f32`/`f64`, `bool`, `ascii`, `hex`, `bytes`,
-`base64`).
+`base64`), plus `number` for a `lorav:derived` value that occupies no bytes.
 
-> **Note on bitmasks:** `lorav:bitmask` extracts a contiguous bit range from an
-> unsigned base value. Several properties may share one byte (or wider word) by
-> each giving a `lorav:bitmask` at the same `lorav:byteOffset` (e.g. a status
-> byte with a flag in bit 7 and a value in bits 0-6) — the base value is read
-> once and decoded into each property. Multi-byte bases (`u16`/`u24`/`u32`) are
-> supported for bit ranges that span more than one byte.
+#### Terms this binding deliberately does *not* define
 
-### Conditional and grouped payloads
+| Instead of a `lorav:` term | Use in `data` |
+|----------------------------|---------------|
+| a unit code | `"unit": "Cel"` (already carries UN/CEFACT codes) |
+| a valid range | `"minimum": -40, "maximum": 85` |
+| the values a reading may take | `"enum": ["dry", "wet"]` |
+| manufacturer / part number | `"schema:manufacturer"`, `"schema:mpn"` on the Thing |
+| hardware / firmware version | `"schema:version"`, `"schema:softwareVersion"` on the Thing |
 
-Use these when one payload contains optional or alternative branches:
+#### Categorical values (`lorav:valueMap`)
 
-* **Flagged** (`presenceField` + `presenceBit`) — decode a group only when a flag bit is set.
-* **Match/switch** (`switchField` + `switchValue`) — decode one case selected by a discriminator.
-* **Byte group** — decode several bitfields from one shared byte/word.
-* **Multi-field TLV case** — same `tag`, ordered by `slot`.
-* **Computed field** (`lorav:type: number`) — derived from other fields via `ref`/`polynomial`/`transform`/`compute`/`guard`, consumes no bytes.
+A reading such as a leak state is split across the two halves of the affordance.
+The `data` schema says which values the reading may take, using TD core's `enum`;
+the form says which byte on the wire produces which of them:
+
+```json
+"leakage_status": {
+  "data": { "type": "string", "enum": ["normal", "leak"] },
+  "forms": [{
+    "href": "uplink",
+    "op": ["subscribeevent", "unsubscribeevent"],
+    "lorav:tag": [5, 0],
+    "lorav:wireType": "u8",
+    "lorav:valueMap": [
+      { "wireValue": 0, "value": "normal" },
+      { "wireValue": 1, "value": "leak" }
+    ]
+  }]
+}
+```
+
+#### Grouped and conditional values
+
+One event always describes one value. Payloads that pack values together or
+branch between them are expressed by giving several events the same locator:
+
+| Shape | How to express it |
+|-------|-------------------|
+| Several values share one byte or word | Same `lorav:byteOffset`, one `lorav:bitmask` each |
+| Several values share one tag | Same `lorav:tag`, ordered by `lorav:slot` |
+| A value appears only when a flag bit is set | `lorav:presentWhen: { "field": "flags", "bit": 0 }` |
+| A value belongs to one branch of a discriminator | `lorav:presentWhen: { "field": "event", "value": 1 }` |
+| A value is derived rather than read from the wire | `lorav:wireType: "number"` + `lorav:derived` |
+
+`lorav:presentWhen` always names the value it depends on in `field`, then gates
+on either a `bit` of it or an exact `value`.
+
+`lorav:bitmask` must select a *contiguous* range of bits. The base value is read
+once and decoded into every event masking it, and bases wider than one byte
+(`u16`/`u24`/`u32`) work too, for ranges spanning several bytes.
+
+#### Derived values (`lorav:derived`)
+
+Some values a device reports are never transmitted. The payload carries a raw
+count and the vendor's documentation gives the arithmetic that turns it into the
+quantity the user asked for, or the value is computed from two other readings.
+Such a value occupies **zero payload bytes**, which is what `lorav:wireType:
+"number"` records — there is no wire type, because there is nothing to read.
+
+`lorav:derived` is one object with up to five keys, each naming *where the value
+comes from*. They apply in this order:
+
+| Key | Meaning |
+|-----|---------|
+| `ref` | The input: `$name` of the event this value is computed from |
+| `polynomial` | Coefficients `[c0, c1, c2, …]`, applied to the input as `c0 + c1·x + c2·x² + …` |
+| `compute` | A binary operation `{ "op": "div", "a": …, "b": … }` over two values or constants |
+| `guard` | A precondition `{ "when": [ … ], "else": v }`; the value falls back to `v` when a `when` clause fails |
+| `transform` | Ordered post-processing steps, each one of `add` / `div` / `mult` / `round` |
+
+Decentlab's 5TM soil sensor transmits a raw dielectric permittivity and
+documents a fourth-order fit for the water content derived from it:
+
+```jsonc
+"volumetric_water_content": {
+  "data": { "type": "number" },
+  "forms": [{
+    "href": "uplink",
+    "lorav:wireType": "number",
+    "lorav:derived": {
+      "ref": "$dielectric_permittivity",
+      "polynomial": [4.3e-06, -0.00055, 0.0292, -0.053]
+    }
+  }]
+}
+```
+
+Its albedo sensor divides two other readings, and guards the division so a night
+time reading does not divide by zero:
+
+```jsonc
+"lorav:derived": {
+  "compute": { "op": "div", "a": "$reflected_radiation", "b": "$incoming_radiation" },
+  "guard": {
+    "when": [
+      { "field": "$incoming_radiation", "gt": 0 },
+      { "field": "$reflected_radiation", "gte": 0 }
+    ],
+    "else": 0
+  }
+}
+```
+
+These were five sibling terms before 0.3.0 (`lorav:ref`, `lorav:polynomial`,
+`lorav:compute`, `lorav:guard`, `lorav:transform`). Grouping them under one term
+makes "this value is computed rather than read."
 
 ## Device onboarding & OTAA security
 
@@ -291,16 +414,10 @@ For OTAA, keep identifiers in the TD and keep root keys out of the TD.
   },
   "security": "otaa_sc",
 
-  "lorav:endDeviceId": "dragino-lht65n-01",
   "lorav:devEUI": "A84041B98D5CB233",
   "lorav:joinEUI": "0000000000000000",
-  "lorav:macVersion": "1.0.3",
-  "lorav:brand": "Dragino",
-  "lorav:model": "LHT65N",
-  "lorav:hardwareVersion": "1.0",
-  "lorav:softwareVersion": "1.4",
-  "lorav:region": "EU868",
-  "lorav:frequencyPlan": "EU_863_870_TTN"
+  "lorav:macVersion": "1.0.3"
+  // plus the optional onboarding terms listed below
 }
 ```
 
@@ -322,36 +439,22 @@ Version 1.1.x uses two root keys, so declare two `apikey` schemes and require bo
 }
 ```
 
-### Thing-level vocabulary
 
-| Term | Meaning | Secret? |
-|------|---------|---------|
-| `lorav:devEUI` | 8-byte device identifier (16 hex chars) | no |
-| `lorav:joinEUI` | 8-byte join/app identifier (formerly AppEUI) | no |
-| `lorav:macVersion` | LoRaWAN MAC version, e.g. `1.0.3`, `1.1.0` | no |
-| `lorav:endDeviceId` | Human/LNS end-device identifier | no |
-| `lorav:brand` | End-device brand / vendor | no |
-| `lorav:model` | End-device model | no |
-| `lorav:hardwareVersion` | Hardware revision | no |
-| `lorav:softwareVersion` | Firmware / software version | no |
-| `lorav:region` | Regulatory region / profile (e.g. `EU868`) | no |
-| `lorav:frequencyPlan` | LNS frequency plan id (e.g. `EU_863_870_TTN`) | no |
-| `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |
-| `NwkKey` | OTAA network root key (1.1.x) — `apikey` scheme `name: "nwkKey"` | **yes (runtime)** |
 
 ## Examples
 
-The repository ships **6 curated example pairs** (`*.td.json` + `*.vectors.json`)
-in `examples/`:
+**Some curated example pairs** (`*.td.json` + `*.vectors.json`) in `examples/`
+are checked in and maintained here.
 
 | File | Layout | Highlights |
 |------|--------|-----------|
-| `examples/adeunis-comfort2.td.json` | `fixed` | Compact fixed layout with signed temperature + humidity scaling and battery percentage. |
-| `examples/milesight-am102.td.json` | `ctv` | Channel/type/value, signed scaling, little-endian; OTAA AppKey (1.0.3) |
-| `examples/dragino-lht65n.td.json` | `ports` | fPort-aware LHT65N example: fPort 2 status bits + basic battery/temperature/humidity, and fPort 5 device-info/battery; OTAA AppKey (1.0.3). Extension-specific alternate paths are documented gaps. |
-| `examples/em300-zld.td.json` | `ctv` | Milesight channel/type payload with leak state + battery from tagged uplinks. |
+| `examples/adeunis-comfort2.td.json` | `fixed` | Smallest complete example: signed temperature, humidity, battery |
+| `examples/milesight-em300-th.td.json` | `tlv` | Little-endian channel/type/value; OTAA AppKey (1.0.3) |
+| `examples/milesight-em300-zld.td.json` | `tlv` | Tagged uplinks with a `lorav:valueMap`-labelled leak state |
+| `examples/dragino-lht65n.td.json` | `ports` | Two fPorts plus status bits via `lorav:bitmask`; OTAA AppKey (1.0.3). Extension-specific alternate paths are a documented gap |
+| `examples/mclimate-mc-button.td.json` | `fixed` | Affine raw-byte scaling (`lorav:multiplier` + `lorav:addend`); an inverted status bit named through `lorav:valueMap` |
+| `examples/netvox-r718a.td.json` | `ports` | Validated against `TheThingsNetwork/lorawan-devices` vectors; two fPorts, each branching on a `match` discriminator |
 | `examples/generic-lorawan11.td.json` | `fixed` | LoRaWAN 1.1 OTAA with AppKey **and** NwkKey; onboarding metadata |
-| `examples/netvox-r718a.td.json` | `ports` | Real device validated against `TheThingsNetwork/lorawan-devices` reference vectors; fPort 6 (`match` on reportType: startup version report vs. status report with a shared status byte) and fPort 7 (`match` on commandId: config-report responses) |
 
 Each example has a matching `*.vectors.json` file with known payloads and their
 expected decoded values, used by the tests.
@@ -369,78 +472,56 @@ uv run python -m scripts.generate_device_tds
 Validation is in `tests/test_device_catalog.py`: TD round-trip must preserve
 decode structure, and TD-based decoding must match source schema decoding.
 
-Coverage summary for the current reference set (158 schemas): **157 generated,
-1 skipped**.
-
-| Category | Status |
-|----------|--------|
-| `fixed`, `ports`, TLV (`single` + `multi-field`) | ✅ |
-| `flagged`, `match`, `byte_group` | ✅ |
-| computed (`ref`/`polynomial`/`transform`) | ✅ |
-| mixed unsupported shape (`hbi/mla20`) | ⏭️ skipped |
-
-The single remaining skip is legitimate, not a regression:
-
-| Reason | Count | Why it can't round-trip |
-|--------|------:|-------------------------|
-| Mixed / unsupported field shape (`hbi/mla20`) | 1 | A fixed header followed by a length-prefixed TLV whose case nests a `byte_group` — a shape the bundled reference interpreter itself mis-decodes (it emits a bogus `unknown` field), and which ships no test vectors, so no faithful TD can be produced |
-
-`scripts/generate_device_tds.py` prints this per-reason report each run.
-
-
-
 
 ## Development
 
+All commands assume you are in the `python/lorawan/` directory.
+
 ```bash
 uv run python -m scripts.generate_device_tds   # generate examples/devices/ (see below)
-uv run pytest          # run the test suite
-uv run ruff check .    # lint
-uv run ruff format .   # format
+uv run pytest                                  # run the test suite
+uv run ruff check .                            # lint
+uv run ruff format .                           # format
+
+uv run python -m scripts.vocab_usage_report    # count lorav: term usage across all TDs
 ```
 
 `examples/devices/` is generated, not checked in, so `tests/test_device_catalog.py`
-fails on a fresh clone until you run the generator once. CI does this before
-running the test suite.
+fails on a fresh clone until you run the generator once.
+
 
 ## Scope & roadmap
 
-* **Now:** uplink decoding (sensor properties and events); generating
-  ChirpStack/TTN JavaScript codecs for non-branching `fixed` uplinks
-  (`generate_js_decoder.py`) and for `ports`/`tlv`/`ctv` layouts
-  (`generate_ts013_codec.py`); and generating Thing Descriptions from the
-  reference device schemas for `fixed`, `ports`, single- and multi-field `tlv`,
-  and the conditional `flagged` / `match` / `byte_group` shapes (the
+* **Now:** uplink decoding, JavaScript codec generation, and Thing Description
+  generation from the reference device schemas — across all four layouts and the
+  `flagged` / `match` / `byte_group` / computed shapes (the
   [device catalog](#device-catalog)).
-* **Later:** downlink / actions (write/invoke); `formula`/`value`-style computed
-  fields; per-`fPort`/command-branched codec generation; and additional payload
-  layouts.
+* **Later:** downlink and actions (write/invoke); `formula`/`value`-style computed
+  fields; per-`fPort` branched codec generation; further payload layouts.
 
 ### Known limitations
 
 The binding covers most common fixed/ports/TLV layouts, but these gaps remain:
 
-* **Arrays / nested object payloads** — dynamic `repeat` structures and object/array
-  field values are not representable as flat TD properties.
-* **Some computed-field shapes** — structured computed descriptors
-  (`ref`/`polynomial`/`transform`/`compute`/`guard`) are supported, but legacy
-  raw-form expressions (for example `formula`/literal-only `value` forms in
-  source schemas) are not converted.
+* **Arrays / nested object payloads** — dynamic `repeat` structures and
+  object/array field values are not representable as flat TD events.
+* **Legacy computed-field forms** — the structured descriptors
+  (`ref`/`polynomial`/`transform`/`compute`/`guard`) are supported, but raw
+  `formula`/literal-`value` expressions in source schemas are not converted.
 * **TLV variants outside `tag_fields` style** — `tag_size`/length-prefixed TLV
   forms and some non-standard tag-key encodings are not converted.
-* **Match defaults and some mixed case internals** — explicit integer
-  `match` cases are supported, but wildcard/default cases and certain embedded
-  constructs (for example raw `skip` entries inside a case in source schemas)
-  are not.
-* **Frame-code dispatch nuance** — top-level frame-byte dispatch is supported
-  when modeled as explicit enumerated `match` cases; open-ended default branches
-  are still a gap.
-* **Dragino-style alternate source branches** — when one logical output field
-  switches to a different byte source under extension/status flags (`Ext`-style
-  branching), only the stable/common path is modeled; branch-specific alternates
-  are documented as gaps.
+* **Match defaults** — explicit enumerated `match` cases are supported (including
+  top-level frame-byte dispatch), but wildcard/default branches and raw `skip`
+  entries inside a case are not.
+* **Alternate source branches** — when one output field switches to a different
+  byte source under an extension/status flag (Dragino `Ext`-style), only the
+  common path is modeled.
+* **`lorav:valueMap` tables must start at 0 and be contiguous** — the reference
+  interpreter indexes the table positionally (`0 <= value < len(table)`), so a
+  table keyed 1–3 drops its last entry: wire value 3 decodes to `3` rather than
+  its label. Affects three RadioBridge `rbs30x` events. The leaked integer fails
+  the event's own `data` schema, so it is at least detectable.
 * **TS013 JS generator shared-byte gap** — `generate_ts013_codec.py` can drop
-  bare bit-range fields and fail to advance the cursor correctly in those cases.
-  This affects generated JavaScript only. The Python reference decode path
-  (`lorawan-wot decode`) remains correct.
+  bare bit-range fields and fail to advance the cursor correctly. This affects
+  generated JavaScript only; `lorawan-wot decode` remains correct.
 

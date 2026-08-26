@@ -8,8 +8,10 @@ matches -- exercising the whole binding pipeline.
 
 from __future__ import annotations
 
+import jsonschema
 import pytest
 
+from lorawan_wot import vocab
 from lorawan_wot.decode import decode_uplink
 
 from .conftest import EXAMPLES_DIR, load_json, vector_files
@@ -32,21 +34,98 @@ def test_decode_matches_expected(td, payload, fport, expected):
     data = decode_uplink(td, payload, fport=fport)
     for key, want in expected.items():
         assert key in data, f"missing field {key!r} in {data}"
-        if isinstance(want, float):
+        if isinstance(want, bool):
+            # Identity, and checked first: Python has True == 1, so a decoder
+            # that returned the raw bit instead of mapping it through
+            # lorav:valueMap would still satisfy '== True'.
+            assert data[key] is want, f"{key}: {data[key]!r} is not {want!r}"
+        elif isinstance(want, float):
             assert data[key] == pytest.approx(want), f"{key}: {data[key]} != {want}"
         else:
             assert data[key] == want, f"{key}: {data[key]} != {want}"
 
 
 def test_decoded_values_satisfy_td_types():
-    """Decoded numbers must be consistent with each property's TD data type."""
+    """Decoded numbers must be consistent with each event's declared data type."""
     spec = load_json(EXAMPLES_DIR / "dragino-lht65n.vectors.json")
     td = load_json(EXAMPLES_DIR / spec["td"])
     first = spec["vectors"][0]
     data = decode_uplink(td, first["payload"], fport=first.get("fport"))
     for name, value in data.items():
-        declared = td["properties"][name]["type"]
+        declared = td[vocab.EVENTS][name][vocab.DATA]["type"]
         if declared == "integer":
             assert isinstance(value, int)
         elif declared == "number":
             assert isinstance(value, (int, float))
+
+
+@pytest.mark.parametrize(("td", "payload", "fport", "expected"), list(_iter_cases()))
+def test_decoded_value_validates_against_its_data_schema(td, payload, fport, expected):
+    """Every decoded value must validate against its own event's ``data`` schema.
+
+    A Thing Description promises that an event's ``data`` describes what the
+    consumer will receive, so the decoder's output is the one instance that schema
+    must accept. Nothing checked that until 0.3.0, and the gap was not theoretical:
+    categorical readings were emitted as ``{"type": "string", "oneOf": [{"const":
+    0, "title": "dry"}]}``, which no instance can satisfy -- it rejects the decoded
+    ``"dry"`` for not matching ``const: 0`` and the raw ``0`` for not being a
+    string. All 21 such schemas in the examples were unsatisfiable, and every
+    decode test still passed, because they only ever compared decoded values to
+    the vectors and never to the TD.
+    """
+    decoded = decode_uplink(td, payload, fport=fport)
+    for name in expected:
+        schema = td[vocab.EVENTS][name][vocab.DATA]
+        jsonschema.validate(instance=decoded[name], schema=schema)
+
+
+def _value_map_td(pairs):
+    """A one-event TD whose single byte is mapped through ``pairs``."""
+    return {
+        vocab.PAYLOAD_LAYOUT: "fixed",
+        vocab.EVENTS: {
+            "state": {
+                vocab.DATA: {"type": "string", "enum": [label for _, label in pairs]},
+                vocab.FORMS: [
+                    {
+                        vocab.BYTE_OFFSET: 0,
+                        vocab.WIRE_TYPE: "u8",
+                        vocab.VALUE_MAP: [
+                            {vocab.VM_WIRE_VALUE: wire, vocab.VM_VALUE: label}
+                            for wire, label in pairs
+                        ],
+                    }
+                ],
+            }
+        },
+    }
+
+
+def test_value_map_decodes_a_wire_value_to_its_label():
+    """The mapping has to survive the round trip into the reference interpreter."""
+    td = _value_map_td([(0, "normal"), (1, "leak")])
+    assert decode_uplink(td, "00")["state"] == "normal"
+    assert decode_uplink(td, "01")["state"] == "leak"
+
+
+def test_value_map_that_does_not_start_at_zero_is_a_known_gap():
+    """A table whose wire values skip 0 silently loses its highest entries.
+
+    The MultiTech interpreter applies ``lookup`` positionally -- ``if 0 <= value
+    < len(lookup)`` -- so it reads a table as a list indexed by the wire value
+    rather than as a mapping. A table keyed 1..3 therefore has length 3, and wire
+    value 3 falls outside the guard and comes back as the bare integer instead of
+    its label. The binding can express such a table (three RadioBridge rbs30x
+    events in the generated catalog do), so this is pinned rather than asserted
+    away: if a submodule bump ever fixes the interpreter, this test fails and
+    tells us the gap has closed.
+    """
+    td = _value_map_td([(1, "single"), (2, "double"), (3, "triple")])
+
+    assert decode_uplink(td, "01")["state"] == "single"
+    assert decode_uplink(td, "03")["state"] == 3  # not "triple"
+
+    # And the gap is detectable rather than silent: the leaked wire value fails
+    # the data schema, which is exactly the check the oneOf/const spelling lacked.
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=3, schema=td[vocab.EVENTS]["state"][vocab.DATA])

@@ -1,7 +1,10 @@
 {
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
-    { "lorav": "https://www.w3.org/2024/wot/lorawan#" }
+    {
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
+    }
   ],
   "@type": "Thing",
   "id": "urn:dev:dragino:lht65n",
@@ -17,119 +20,130 @@
   },
   "security": "otaa_sc",
   "base": "lorawan://A84041B98D5CB233/{appKey}/device",
-
-  "lorav:endDeviceId": "dragino-lht65n-01",
   "lorav:devEUI": "A84041B98D5CB233",
   "lorav:joinEUI": "0000000000000000",
   "lorav:macVersion": "1.0.3",
-  "lorav:brand": "Dragino",
-  "lorav:model": "LHT65N",
-  "lorav:hardwareVersion": "1.0",
-  "lorav:softwareVersion": "1.4",
+  "schema:manufacturer": "Dragino",
+  "schema:mpn": "LHT65N",
+  "schema:version": "1.0",
+  "schema:softwareVersion": "1.4",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
-
   "lorav:payloadLayout": "ports",
-
-  "properties": {
+  "events": {
     "retransmissionStatus": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 retransmission status bit (byte 6, bit 7). Official branch of interest decodes sensor values when this is 0.",
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 6,
-          "lorav:type": "xsd:unsignedByte",
+          "lorav:wireType": "xsd:unsignedByte",
           "lorav:bitmask": "0x80"
         }
       ]
     },
     "pollMessageStatus": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 poll-message status bit (byte 6, bit 6). Official branch of interest decodes sensor values when this is 0.",
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 6,
-          "lorav:type": "xsd:unsignedByte",
+          "lorav:wireType": "xsd:unsignedByte",
           "lorav:bitmask": "0x40"
         }
       ]
     },
     "extensionCode": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 extension discriminator (byte 6, low nibble). Used to select the temperature/battery decoding path.",
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 6,
-          "lorav:type": "xsd:unsignedByte",
+          "lorav:wireType": "xsd:unsignedByte",
           "lorav:bitmask": "0x0F"
         }
       ]
     },
     "batteryVoltage": {
-      "type": "number",
-      "unit": "V",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 battery voltage (`BatV`) from bytes 0..1 (basic extraction path).",
+      "data": {
+        "type": "number",
+        "unit": "V"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 0,
-          "lorav:type": "xsd:unsignedShort",
-          "lorav:mostSignificantByte": true,
+          "lorav:wireType": "xsd:unsignedShort",
           "lorav:multiplier": 0.001
         }
       ]
     },
     "temperature": {
-      "type": "number",
-      "unit": "Cel",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 SHT temperature (`TempC_SHT`) from bytes 2..3.",
+      "data": {
+        "type": "number",
+        "unit": "Cel"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 2,
-          "lorav:type": "xsd:short",
-          "lorav:mostSignificantByte": true,
+          "lorav:wireType": "xsd:short",
           "lorav:multiplier": 0.01
         }
       ]
     },
     "humidity": {
-      "type": "number",
-      "unit": "%RH",
-      "readOnly": true,
-      "observable": true,
       "description": "fPort 2 humidity from bytes 4..5 (basic extraction path).",
+      "data": {
+        "type": "number",
+        "unit": "%RH"
+      },
       "forms": [
         {
           "href": "uplink",
-          "op": ["readproperty", "observeproperty"],
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
           "lorav:fPort": 2,
           "lorav:byteOffset": 4,
-          "lorav:type": "xsd:unsignedShort",
-          "lorav:mostSignificantByte": true,
+          "lorav:wireType": "xsd:unsignedShort",
           "lorav:multiplier": 0.1
         }
       ]

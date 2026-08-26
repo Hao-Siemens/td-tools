@@ -1,0 +1,24 @@
+{
+  "td": "milesight-em300-th.td.json",
+  "description": "Channel/type/value uplinks for the Milesight EM300-TH, captured on fPort 85.",
+  "vectors": [
+    {
+      "name": "temperature_humidity",
+      "payload": "0367F800046862",
+      "fport": 85,
+      "expected": { "temperature": 24.8, "humidity": 49.0 }
+    },
+    {
+      "name": "battery_temperature_humidity",
+      "payload": "0175640367F900046862",
+      "fport": 85,
+      "expected": { "battery": 100, "temperature": 24.9, "humidity": 49.0 }
+    },
+    {
+      "name": "negative_temperature",
+      "payload": "0367E7FF",
+      "fport": 85,
+      "expected": { "temperature": -2.5 }
+    }
+  ]
+}

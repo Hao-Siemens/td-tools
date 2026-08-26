@@ -2,7 +2,8 @@
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
     {
-      "lorav": "https://www.w3.org/2024/wot/lorawan#"
+      "lorav": "https://www.w3.org/2024/wot/lorawan#",
+      "schema": "https://schema.org/"
     }
   ],
   "@type": "Thing",
@@ -19,86 +20,81 @@
   },
   "security": "otaa_sc",
   "base": "lorawan://0000000000000000/{appKey}/device",
-  "lorav:endDeviceId": "adeunis-comfort2-01",
   "lorav:devEUI": "0000000000000000",
   "lorav:joinEUI": "0000000000000000",
   "lorav:macVersion": "1.0.2",
-  "lorav:brand": "Adeunis",
-  "lorav:model": "Comfort 2",
-  "lorav:hardwareVersion": "1",
-  "lorav:softwareVersion": "1",
+  "schema:manufacturer": "Adeunis",
+  "schema:mpn": "Comfort 2",
+  "schema:version": "1",
+  "schema:softwareVersion": "1",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870_TTN",
   "lorav:payloadLayout": "fixed",
-  "properties": {
+  "events": {
     "frameCode": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:byteOffset": 0,
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": true
+          "lorav:wireType": "u8"
         }
       ]
     },
     "statusByte": {
-      "type": "integer",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "integer"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:byteOffset": 1,
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": true
+          "lorav:wireType": "u8"
         }
       ]
     },
     "temperature": {
-      "type": "number",
-      "unit": "°C",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "number",
+        "unit": "°C"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:byteOffset": 2,
-          "lorav:type": "s16",
-          "lorav:mostSignificantByte": true,
+          "lorav:wireType": "s16",
           "lorav:divisor": 10
         }
       ]
     },
     "humidity": {
-      "type": "integer",
-      "unit": "%",
-      "readOnly": true,
-      "observable": true,
+      "data": {
+        "type": "integer",
+        "unit": "%"
+      },
       "forms": [
         {
           "href": "uplink",
           "op": [
-            "readproperty",
-            "observeproperty"
+            "subscribeevent",
+            "unsubscribeevent"
           ],
           "lorav:byteOffset": 4,
-          "lorav:type": "u8",
-          "lorav:mostSignificantByte": true
+          "lorav:wireType": "u8"
         }
       ]
     }
