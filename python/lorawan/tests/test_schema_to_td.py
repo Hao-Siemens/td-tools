@@ -154,6 +154,217 @@ def test_lookup_enum_round_trips_to_strings():
     assert td_to_payload_schema(td)["fields"][0]["lookup"] == {0: "N", 1: "S"}
 
 
+def test_lookup_table_with_a_default_label_is_skipped_not_crashed():
+    """A non-integer table key must skip its device, not abort the whole run.
+
+    A table may carry a ``default`` label covering every value it does not list
+    (PS-269). ``lorav:valueMap`` pairs one wire value with one decoded value and
+    cannot say "anything else", so the field is outside the subset.
+
+    The reason it is a test rather than a note: the key was converted with a bare
+    ``int()``, so the first schema in the library to use ``default`` raised an
+    uncaught ValueError out of the batch script and no catalog was generated at
+    all. A skip loses one device; a crash loses all of them.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "state", "type": "u8", "lookup": {0: "off", 1: "on", "default": "?"}}],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.ENUM_TABLE
+
+
+def test_length_remaining_round_trips_through_the_byte_length_sentinel():
+    """``length: remaining`` converts, rather than taking its device out.
+
+    The form vocabulary carries a byte count, and ``remaining`` is not one, so
+    this used to raise an uncaught ValueError. It is expressible though: the
+    reference interpreter resolves the keyword and any negative length the same
+    way, and the form schema already documents -1 as that sentinel. Mapping it
+    keeps the device; skipping it would not.
+
+    The keyword normalises to the sentinel on the way back, rather than being
+    remembered verbatim. Both spellings decode identically, the numeric one is
+    what the schema library already writes, and it is the form the vocabulary can
+    carry -- so there is one spelling downstream instead of two.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "payload", "type": "hex", "length": "remaining"}],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    form = td[vocab.EVENTS]["payload"][vocab.FORMS][0]
+    assert form[vocab.BYTE_LENGTH] == vocab.BYTE_LENGTH_REMAINING
+    assert td_to_payload_schema(td)["fields"][0]["length"] == vocab.BYTE_LENGTH_REMAINING
+
+
+def test_length_naming_a_variable_is_skipped():
+    """A ``$variable`` length has no implementation to round trip to."""
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "payload", "type": "hex", "length": "$len"}],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.LENGTH_NOT_FIXED
+
+
+def test_a_wire_field_carrying_a_transform_keeps_its_wire_type_and_width():
+    """``transform`` post-processes a value read from the wire; it is not derived.
+
+    Modelled on decentlab's ``air_temperature``: a ``u16`` whose raw count is
+    scaled after reading. Treating the transform as proof of derivation replaced
+    the wire type with the derived marker, so the field became zero bytes wide,
+    ``humidity`` after it read from offset 0 instead of 2, and the temperature
+    dropped out of the decode entirely.
+
+    Asserted through the byte offsets rather than on the transform alone, because
+    the damage showed up in the *other* fields -- a test that only checked the
+    transform survived would have passed throughout.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {
+                "name": "air_temperature",
+                "type": "u16",
+                "transform": [{"div": 100}, {"add": -327.68}],
+            },
+            {"name": "humidity", "type": "u16"},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+
+    temp_form = td[vocab.EVENTS]["air_temperature"][vocab.FORMS][0]
+    assert temp_form[vocab.WIRE_TYPE] == "u16"
+    assert temp_form[vocab.DERIVED] == {"transform": [{"div": 100}, {"add": -327.68}]}
+    assert temp_form[vocab.BYTE_OFFSET] == 0
+    # The field still occupies its two bytes, so the next one starts after them.
+    assert td[vocab.EVENTS]["humidity"][vocab.FORMS][0][vocab.BYTE_OFFSET] == 2
+
+    # And the stages survive the trip back, or the value would decode unscaled.
+    rebuilt = td_to_payload_schema(td)["fields"]
+    assert rebuilt[0]["type"] == "u16"
+    assert rebuilt[0]["transform"] == [{"div": 100}, {"add": -327.68}]
+
+
+def test_a_value_computed_from_others_is_still_derived():
+    """A field with no wire type to read stays on the derived path."""
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "raw", "type": "u16"},
+            {"name": "ratio", "ref": "$raw", "polynomial": [0, 0.5]},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    form = td[vocab.EVENTS]["ratio"][vocab.FORMS][0]
+    assert form[vocab.WIRE_TYPE] == vocab.COMPUTED_TYPE
+    assert form[vocab.DERIVED]["ref"] == "$raw"
+
+
+def test_a_sensor_annotation_does_not_take_a_device_out_of_the_catalog():
+    """``sensor`` names which sensor a channel belongs to; it does not decode.
+
+    An unrecognised field key is rejected, on the principle that silently
+    ignoring one risks dropping something that changes the reading. This one
+    cannot: like ``semantic`` and ``ipso`` beside it, it labels the channel's
+    origin and the reference interpreter never consults it. Rejecting it cost 42
+    devices in the next schema library.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [{"name": "battery", "type": "u8", "unit": "%", "sensor": "internal"}],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    event = td[vocab.EVENTS]["battery"]
+    assert event[vocab.DATA]["unit"] == "%"
+    # Dropped rather than carried: nothing downstream has a use for it.
+    assert "sensor" not in str(event[vocab.FORMS][0])
+
+
+def test_a_downlink_command_byte_becomes_a_const_on_the_data_schema():
+    """``value`` fixes a byte when *encoding*; it does not compute anything.
+
+    It had been read as a derived-value descriptor, which took the field's device
+    out of the catalog -- 45 of them, since nearly every downlink command in the
+    schema library identifies itself with a fixed category and command byte.
+
+    The reference interpreter does not use ``value`` when decoding: it reads the
+    byte and reports what the payload actually contained. So the field is an
+    ordinary scalar that happens to be constrained, and TD core's ``const``
+    already says that. A binding term would have been the wrong place -- the
+    constraint is a fact about the value, not about how it is transferred.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "category", "type": "u8", "value": 3},
+            {"name": "interval", "type": "u16", "unit": "s"},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+
+    category = td[vocab.EVENTS]["category"]
+    assert category[vocab.DATA]["const"] == 3
+    # Still a real byte on the wire, so the field after it is not shifted.
+    assert category[vocab.FORMS][0][vocab.WIRE_TYPE] == "u8"
+    assert td[vocab.EVENTS]["interval"][vocab.FORMS][0][vocab.BYTE_OFFSET] == 1
+
+    assert td_to_payload_schema(td)["fields"][0]["value"] == 3
+
+
+def test_a_derived_value_reading_something_the_td_lacks_is_skipped():
+    """A wrong Thing Description is worse than a missing one.
+
+    A derived value names its inputs with ``$name``. Rebuilding a payload schema
+    from the events alone means an input with no event of its own comes back as
+    nothing, and the reference interpreter then evaluates the field against zero.
+    qingping decoded a temperature of -50 where its schema says 359.5.
+
+    Unlike a skip, that failure is invisible: the device is in the catalog and
+    the number is simply wrong. So it is caught after the events are assembled
+    and the device is skipped instead.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {
+                "byte_group": {
+                    "size": 1,
+                    "fields": [
+                        {"name": "_flag", "type": "u8[0:3]"},
+                        {"name": "_count", "type": "u8[4:7]"},
+                    ],
+                }
+            },
+            {"name": "reading", "ref": "$_count", "polynomial": [-50, 0.1]},
+        ],
+    }
+    with pytest.raises(UnsupportedSchemaError) as excinfo:
+        payload_schema_to_td(schema, source="demo.yaml")
+    assert excinfo.value.reason is SkipReason.INTERNAL_REF
+
+
+def test_an_internal_input_that_does_survive_the_round_trip_is_kept():
+    """The guard is on what the Thing Description carries, not on the name.
+
+    Most `_`-prefixed inputs get an event of their own and resolve correctly.
+    Rejecting on the leading underscore alone cost 22 devices to prevent the one
+    wrong Thing Description above.
+    """
+    schema = {
+        "endian": "big",
+        "fields": [
+            {"name": "_raw", "type": "u16"},
+            {"name": "reading", "ref": "$_raw", "polynomial": [-50, 0.1]},
+        ],
+    }
+    td = payload_schema_to_td(schema, source="demo.yaml")
+    assert td[vocab.EVENTS]["reading"][vocab.FORMS][0][vocab.DERIVED]["ref"] == "$_raw"
+
+
 def test_multi_field_tlv_case_becomes_slotted_events():
     """Several fields under one tag become slot-ordered events sharing the tag."""
     schema = {

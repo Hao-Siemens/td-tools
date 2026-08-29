@@ -170,11 +170,23 @@
     "description": "Scaling is stated once, as either a multiplier or a divisor; giving both would leave the order of the two operations undefined.",
     "required": ["lorav:multiplier", "lorav:divisor"]
   },
-  "dependencies": {
-    "lorav:derived": {
-      "description": "A derived value carries no payload bytes, so its wire type must be 'number'.",
-      "properties": { "lorav:wireType": { "const": "number" } }
-    }
+  "if": {
+    "properties": {
+      "lorav:derived": {
+        "type": "object",
+        "anyOf": [
+          { "required": ["ref"] },
+          { "required": ["polynomial"] },
+          { "required": ["compute"] },
+          { "required": ["guard"] }
+        ]
+      }
+    },
+    "required": ["lorav:derived"]
+  },
+  "then": {
+    "description": "A value computed from other values reads no payload bytes, so its wire type is 'number'. A 'transform' alone does not qualify: it post-processes a value that was read from the wire, and that field keeps its real wire type.",
+    "properties": { "lorav:wireType": { "const": "number" } }
   },
   "additionalProperties": true
 }

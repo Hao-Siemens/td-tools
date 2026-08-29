@@ -210,11 +210,23 @@ class _Field:
     def is_computed(self) -> bool:
         """True when this value is derived (zero payload bytes).
 
-        A computed value carries ``lorav:wireType`` ``"number"`` and/or a
-        ``lorav:derived`` descriptor object; the reference interpreter evaluates
-        it from other already-decoded values rather than reading wire bytes.
+        A derived value has nothing to read: its ``lorav:wireType`` is
+        ``"number"``, the marker the reference interpreter evaluates from other
+        already-decoded values rather than from wire bytes.
+
+        Carrying a ``lorav:derived`` descriptor does not by itself make a value
+        derived. ``transform`` post-processes a value that *was* read from the
+        wire, and treating any descriptor as proof of derivation gave a
+        transform-carrying scalar a byte width of zero: every field after it read
+        from the wrong offset, and the field itself dropped out of the decode.
+        That is a wrong Thing Description rather than a missing one, which no
+        count of converted devices can detect.
         """
-        return self.form.get(vocab.WIRE_TYPE) == vocab.COMPUTED_TYPE or bool(self.derived)
+        wire = self.form.get(vocab.WIRE_TYPE)
+        if wire is None:
+            # Nothing declared to read, so the descriptors are all there is.
+            return bool(self.derived)
+        return wire == vocab.COMPUTED_TYPE
 
     @property
     def byte_width(self) -> int:
@@ -231,6 +243,11 @@ class _Field:
                 f"Event {self.name!r}: type {wire!r} requires "
                 f"{vocab.BYTE_LENGTH!r} to determine its byte width."
             )
+        if int(length) == vocab.BYTE_LENGTH_REMAINING:
+            # Width known only at decode time. Reported as 0 so it does not
+            # advance a fixed-layout cursor by a nonsense amount: a field that
+            # eats the rest of the payload has nothing after it to place.
+            return 0
         return int(length)
 
     # -- MultiTech field body -------------------------------------------------
@@ -255,6 +272,13 @@ class _Field:
         # interpreter applies these in field-key order, so emit them in the order
         # they appear on the form (which preserves the source schema's order).
         _emit_scaling(field, self.form)
+
+        # A wire field may still post-process what it read. Carried here as well
+        # as on the derived path: dropping it left the bytes read correctly but
+        # unscaled, so decentlab's air_temperature reported 65535 instead of
+        # 327.67.
+        if (transform := self.derived.get("transform")) is not None:
+            field["transform"] = copy.deepcopy(transform)
 
         # Length for variable-length types (string/bytes/hex/base64).
         if (length := self.form.get(vocab.BYTE_LENGTH)) is not None:
@@ -289,6 +313,11 @@ class _Field:
             field["lookup"] = lookup
         if (valid_range := self._valid_range()) is not None:
             field["valid_range"] = valid_range
+        if (const := self.data.get("const")) is not None:
+            # The byte an encoder must emit. Decoding ignores it -- the
+            # interpreter reports whatever the payload held -- so this only has to
+            # survive the round trip.
+            field["value"] = const
 
     def _lookup(self) -> dict[int, Any] | None:
         """Build the interpreter's ``lookup`` table from the form's value map.
