@@ -19,12 +19,12 @@
           "name": "temperature",
           "type": "s16",
           "div": 10,
-          "unit": "°C"
+          "unit": "Cel"
         },
         {
           "name": "humidity",
           "type": "u8",
-          "unit": "%"
+          "unit": "%RH"
         }
       ]
     },
@@ -216,21 +216,24 @@
               "[1, 117]": [
                 {
                   "name": "battery",
-                  "type": "u8"
+                  "type": "u8",
+                  "unit": "%"
                 }
               ],
               "[3, 103]": [
                 {
                   "name": "temperature",
                   "type": "s16",
-                  "div": 10
+                  "div": 10,
+                  "unit": "Cel"
                 }
               ],
               "[4, 104]": [
                 {
                   "name": "humidity",
                   "type": "u8",
-                  "div": 2
+                  "div": 2,
+                  "unit": "%RH"
                 }
               ],
               "[5, 0]": [

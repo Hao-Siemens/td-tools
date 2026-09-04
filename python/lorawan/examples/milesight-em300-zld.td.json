@@ -3,12 +3,14 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#"
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Leak_Detector_Equipment", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
   "id": "urn:dev:milesight_em300_zld",
   "title": "milesight em300 zld",
+  "description": "Milesight EM300-ZLD leak detection sensor with battery, temperature, humidity, and leak status uplink events.",
   "securityDefinitions": {
     "otaa_sc": {
       "scheme": "apikey",
@@ -27,12 +29,25 @@
   "schema:version": "1",
   "schema:softwareVersion": "1",
   "lorav:region": "EU868",
-  "lorav:frequencyPlan": "EU_863_870_TTN",
+  "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "tlv",
+  "lorav:tagFields": [
+    {
+      "name": "channel_id",
+      "type": "u8"
+    },
+    {
+      "name": "channel_type",
+      "type": "u8"
+    }
+  ],
+  "defaultEventingFrequencyMinutes": 10,
   "events": {
     "battery": {
       "data": {
-        "type": "integer"
+        "type": "integer",
+        "unit": "%",
+        "readOnly": true
       },
       "forms": [
         {
@@ -50,8 +65,12 @@
       ]
     },
     "temperature": {
+      "@type": "brick:Temperature_Sensor",
+      "knxDatapointType": "9.001",
       "data": {
-        "type": "number"
+        "type": "number",
+        "unit": "Cel",
+        "readOnly": true
       },
       "forms": [
         {
@@ -71,8 +90,12 @@
       ]
     },
     "humidity": {
+      "@type": "brick:Relative_Humidity_Sensor",
+      "knxDatapointType": "9.007",
       "data": {
-        "type": "number"
+        "type": "number",
+        "unit": "%RH",
+        "readOnly": true
       },
       "forms": [
         {
@@ -91,12 +114,14 @@
       ]
     },
     "leakage_status": {
+      "@type": "brick:Leak_Detector_Equipment",
       "data": {
         "type": "string",
         "enum": [
           "normal",
           "leak"
-        ]
+        ],
+        "readOnly": true
       },
       "forms": [
         {
@@ -123,15 +148,5 @@
         }
       ]
     }
-  },
-  "lorav:tagFields": [
-    {
-      "name": "channel_id",
-      "type": "u8"
-    },
-    {
-      "name": "channel_type",
-      "type": "u8"
-    }
-  ]
+  }
 }

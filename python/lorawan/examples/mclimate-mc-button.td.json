@@ -3,10 +3,11 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#"
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Temperature_Sensor"],
   "id": "urn:dev:mclimate:mc-button",
   "title": "mclimate_mc_button",
   "description": "MClimate Multipurpose Button LoRaWAN",
@@ -24,16 +25,19 @@
   "lorav:joinEUI": "0000000000000000",
   "lorav:macVersion": "1.0.3",
   "schema:manufacturer": "MClimate",
+  "schema:mpn": "MC Button",
   "schema:version": "1.0",
   "schema:softwareVersion": "1.0",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
+  "defaultEventingFrequencyMinutes": 10,
   "events": {
     "frameType": {
       "description": "Byte 0 frame discriminator. 1 indicates a keepalive frame in the official decoder.",
       "data": {
-        "type": "integer"
+        "type": "integer",
+        "readOnly": true
       },
       "forms": [
         {
@@ -51,7 +55,8 @@
       "description": "Battery voltage in volts using direct raw scaling from byte 1: V=(byte*8+1600)/1000.",
       "data": {
         "type": "number",
-        "unit": "V"
+        "unit": "V",
+        "readOnly": true
       },
       "forms": [
         {
@@ -70,7 +75,8 @@
     "thermistorProperlyConnected": {
       "description": "Thermistor status from byte 2, bit 2. The bit is set when the thermistor is absent..",
       "data": {
-        "type": "boolean"
+        "type": "boolean",
+        "readOnly": true
       },
       "forms": [
         {
@@ -96,10 +102,13 @@
       ]
     },
     "sensorTemperature": {
+      "@type": "brick:Temperature_Sensor",
+      "knxDatapointType": "9.001",
       "description": "Thermistor temperature in Celsius from byte 3 using the official 0.1C scaling. ",
       "data": {
         "type": "number",
-        "unit": "Cel"
+        "unit": "Cel",
+        "readOnly": true
       },
       "forms": [
         {
@@ -117,7 +126,8 @@
     "pressEvent": {
       "description": "Button press code from byte 4 (1=single, 2=double, 3=triple). ",
       "data": {
-        "type": "integer"
+        "type": "integer",
+        "readOnly": true
       },
       "forms": [
         {

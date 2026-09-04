@@ -3,10 +3,11 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#"
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Temperature_Sensor"],
   "id": "urn:dev:example:generic-lorawan11",
   "title": "generic_lorawan11_sensor",
   "description": "Generic LoRaWAN 1.1 sensor demonstrating OTAA with both AppKey and NwkKey (fixed binary uplink layout).",
@@ -39,6 +40,7 @@
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
+  "defaultEventingFrequencyMinutes": 10,
   "events": {
     "battery": {
       "description": "Battery level as a percentage.",
@@ -46,7 +48,8 @@
         "type": "integer",
         "unit": "%",
         "minimum": 0,
-        "maximum": 100
+        "maximum": 100,
+        "readOnly": true
       },
       "forms": [
         {
@@ -61,9 +64,12 @@
       ]
     },
     "temperature": {
+      "@type": "brick:Temperature_Sensor",
+      "knxDatapointType": "9.001",
       "data": {
         "type": "number",
-        "unit": "Cel"
+        "unit": "Cel",
+        "readOnly": true
       },
       "forms": [
         {

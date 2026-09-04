@@ -3,10 +3,11 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#"
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
   "id": "urn:dev:adeunis_comfort2",
   "title": "adeunis comfort2",
   "description": "Adeunis Comfort 2 basic sensor-reading mapping for the official 0x4C data frame (temperature/humidity history): first sample only.",
@@ -28,12 +29,14 @@
   "schema:version": "1",
   "schema:softwareVersion": "1",
   "lorav:region": "EU868",
-  "lorav:frequencyPlan": "EU_863_870_TTN",
+  "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
+  "defaultEventingFrequencyMinutes": 10,
   "events": {
     "frameCode": {
       "data": {
-        "type": "integer"
+        "type": "integer",
+        "readOnly": true
       },
       "forms": [
         {
@@ -49,7 +52,8 @@
     },
     "statusByte": {
       "data": {
-        "type": "integer"
+        "type": "integer",
+        "readOnly": true
       },
       "forms": [
         {
@@ -64,9 +68,12 @@
       ]
     },
     "temperature": {
+      "@type": "brick:Temperature_Sensor",
+      "knxDatapointType": "9.001",
       "data": {
         "type": "number",
-        "unit": "°C"
+        "unit": "Cel",
+        "readOnly": true
       },
       "forms": [
         {
@@ -82,9 +89,12 @@
       ]
     },
     "humidity": {
+      "@type": "brick:Relative_Humidity_Sensor",
+      "knxDatapointType": "9.007",
       "data": {
         "type": "integer",
-        "unit": "%"
+        "unit": "%RH",
+        "readOnly": true
       },
       "forms": [
         {
