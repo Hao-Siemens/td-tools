@@ -4,10 +4,17 @@
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
       "schema": "https://schema.org/",
-      "brick": "https://brickschema.org/schema/Brick#"
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": ["Thing", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:milesight:em300-th",
   "title": "milesight_em300_th",
   "description": "Milesight EM300-TH outdoor temperature & humidity sensor (channel/type/value payload on fPort 85).",
@@ -41,13 +48,18 @@
       "type": "u8"
     }
   ],
-  "defaultEventingFrequencyMinutes": 10,
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:milesight:em300-th#temperature" },
+    { "@id": "urn:dev:milesight:em300-th#humidity" }
+  ],
   "events": {
     "battery": {
       "data": {
         "type": "integer",
         "unit": "%",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT",
+        "qudt:hasQuantityKind": "quantitykind:DimensionlessRatio"
       },
       "forms": [
         {
@@ -65,12 +77,14 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:milesight:em300-th#temperature",
       "@type": "brick:Temperature_Sensor",
-      "knxDatapointType": "9.001",
+      "knx:datapointType": "knx:valueTemp",
       "data": {
         "type": "number",
         "unit": "Cel",
-        "readOnly": true
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
@@ -90,12 +104,14 @@
       ]
     },
     "humidity": {
+      "@id": "urn:dev:milesight:em300-th#humidity",
       "@type": "brick:Relative_Humidity_Sensor",
-      "knxDatapointType": "9.007",
+      "knx:datapointType": "knx:valueHumidity",
       "data": {
         "type": "number",
         "unit": "%RH",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT_RH",
+        "qudt:hasQuantityKind": "quantitykind:RelativeHumidity"
       },
       "forms": [
         {

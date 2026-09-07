@@ -4,10 +4,17 @@
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
       "schema": "https://schema.org/",
-      "brick": "https://brickschema.org/schema/Brick#"
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": ["Thing", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:netvox:r718a",
   "title": "netvox_r718a",
   "description": "Netvox R718A Temperature and Humidity Sensor for Low Temperature Environment.",
@@ -31,14 +38,17 @@
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "ports",
-  "defaultEventingFrequencyMinutes": 10,
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:netvox:r718a#temperature" },
+    { "@id": "urn:dev:netvox:r718a#humidity" }
+  ],
   "events": {
     "reportType": {
       "title": "fPort 6 report type",
       "description": "Discriminator byte for fPort 6 uplinks. 0 = startup version report, 1 = periodic status report.",
       "data": {
-        "type": "integer",
-        "readOnly": true
+        "type": "integer"
       },
       "forms": [
         {
@@ -59,7 +69,8 @@
       "data": {
         "type": "number",
         "unit": "V",
-        "readOnly": true
+        "qudt:unit": "qunit:V",
+        "qudt:hasQuantityKind": "quantitykind:Voltage"
       },
       "forms": [
         {
@@ -87,8 +98,7 @@
       "data": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 1,
-        "readOnly": true
+        "maximum": 1
       },
       "forms": [
         {
@@ -110,14 +120,16 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:netvox:r718a#temperature",
       "@type": "brick:Temperature_Sensor",
-      "knxDatapointType": "9.001",
+      "knx:datapointType": "knx:valueTemp",
       "title": "Temperature",
       "description": "Measured temperature (fPort 6, reportType 1), signed big-endian hundredths of a degree Celsius.",
       "data": {
         "type": "number",
         "unit": "Cel",
-        "readOnly": true
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
@@ -139,14 +151,16 @@
       ]
     },
     "humidity": {
+      "@id": "urn:dev:netvox:r718a#humidity",
       "@type": "brick:Relative_Humidity_Sensor",
-      "knxDatapointType": "9.007",
+      "knx:datapointType": "knx:valueHumidity",
       "title": "Relative humidity",
       "description": "Relative humidity (fPort 6, reportType 1), unsigned big-endian hundredths of a percent.",
       "data": {
         "type": "number",
         "unit": "%RH",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT_RH",
+        "qudt:hasQuantityKind": "quantitykind:RelativeHumidity"
       },
       "forms": [
         {

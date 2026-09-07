@@ -271,6 +271,14 @@ NWK_KEY_NAME: Final = "nwkKey"
 REGION: Final = "lorav:region"  # regulatory profile, e.g. "EU868", "US915"
 FREQUENCY_PLAN: Final = "lorav:frequencyPlan"  # LNS frequency plan id
 
+#: How often the device is expected to uplink unprompted, in minutes.
+#:
+#: A LoRaWAN device transmits on its own schedule, so a consumer subscribing to
+#: its events has no way to tell "nothing to report" from "stopped reporting"
+#: without knowing the cadence to expect. TD core has no term for it: its event
+#: affordances describe what a notification carries, not how often one arrives.
+DEFAULT_EVENTING_FREQUENCY_MINUTES: Final = "lorav:defaultEventingFrequencyMinutes"
+
 #: Companion vocabulary used for device metadata that is not LoRaWAN-specific.
 #:
 #: schema.org rather than TD core's ``version`` object, which versions the *Thing
@@ -363,6 +371,7 @@ THING_TERMS: Final = frozenset(
         MAC_VERSION,
         REGION,
         FREQUENCY_PLAN,
+        DEFAULT_EVENTING_FREQUENCY_MINUTES,
     }
 )
 

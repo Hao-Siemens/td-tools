@@ -4,10 +4,17 @@
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
       "schema": "https://schema.org/",
-      "brick": "https://brickschema.org/schema/Brick#"
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": ["Thing", "brick:Leak_Detector_Equipment", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
+  "@type": ["Thing", "brick:Leak_Detector_Equipment"],
   "id": "urn:dev:milesight_em300_zld",
   "title": "milesight em300 zld",
   "description": "Milesight EM300-ZLD leak detection sensor with battery, temperature, humidity, and leak status uplink events.",
@@ -41,13 +48,19 @@
       "type": "u8"
     }
   ],
-  "defaultEventingFrequencyMinutes": 10,
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:milesight_em300_zld#temperature" },
+    { "@id": "urn:dev:milesight_em300_zld#humidity" },
+    { "@id": "urn:dev:milesight_em300_zld#leakage_status" }
+  ],
   "events": {
     "battery": {
       "data": {
         "type": "integer",
         "unit": "%",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT",
+        "qudt:hasQuantityKind": "quantitykind:DimensionlessRatio"
       },
       "forms": [
         {
@@ -65,12 +78,14 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:milesight_em300_zld#temperature",
       "@type": "brick:Temperature_Sensor",
-      "knxDatapointType": "9.001",
+      "knx:datapointType": "knx:valueTemp",
       "data": {
         "type": "number",
         "unit": "Cel",
-        "readOnly": true
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
@@ -90,12 +105,14 @@
       ]
     },
     "humidity": {
+      "@id": "urn:dev:milesight_em300_zld#humidity",
       "@type": "brick:Relative_Humidity_Sensor",
-      "knxDatapointType": "9.007",
+      "knx:datapointType": "knx:valueHumidity",
       "data": {
         "type": "number",
         "unit": "%RH",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT_RH",
+        "qudt:hasQuantityKind": "quantitykind:RelativeHumidity"
       },
       "forms": [
         {
@@ -114,14 +131,14 @@
       ]
     },
     "leakage_status": {
-      "@type": "brick:Leak_Detector_Equipment",
+      "@id": "urn:dev:milesight_em300_zld#leakage_status",
+      "@type": "brick:Leak_Alarm",
       "data": {
         "type": "string",
         "enum": [
           "normal",
           "leak"
-        ],
-        "readOnly": true
+        ]
       },
       "forms": [
         {

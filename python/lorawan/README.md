@@ -225,6 +225,7 @@ it is *transferred*.
 | `lorav:macVersion` | LoRaWAN MAC version, e.g. `1.0.3`, `1.1.0` | no |
 | `lorav:region` | Regulatory region / profile (e.g. `EU868`) | no |
 | `lorav:frequencyPlan` | LNS frequency plan id (e.g. `EU_863_870_TTN`) | no |
+| `lorav:defaultEventingFrequencyMinutes` | Expected minutes between unprompted uplinks | no |
 | `lorav:payloadLayout` | Payload structure: `fixed`, `ports`, `tlv` or `ctv` | no |
 | `lorav:tagFields` | Tag field definitions for `tlv`/`ctv` layouts | no |
 | `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |

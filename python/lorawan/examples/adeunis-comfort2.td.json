@@ -4,10 +4,17 @@
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
       "schema": "https://schema.org/",
-      "brick": "https://brickschema.org/schema/Brick#"
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": ["Thing", "brick:Temperature_Sensor", "brick:Relative_Humidity_Sensor"],
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:adeunis_comfort2",
   "title": "adeunis comfort2",
   "description": "Adeunis Comfort 2 basic sensor-reading mapping for the official 0x4C data frame (temperature/humidity history): first sample only.",
@@ -31,12 +38,15 @@
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
-  "defaultEventingFrequencyMinutes": 10,
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:adeunis_comfort2#temperature" },
+    { "@id": "urn:dev:adeunis_comfort2#humidity" }
+  ],
   "events": {
     "frameCode": {
       "data": {
-        "type": "integer",
-        "readOnly": true
+        "type": "integer"
       },
       "forms": [
         {
@@ -52,8 +62,7 @@
     },
     "statusByte": {
       "data": {
-        "type": "integer",
-        "readOnly": true
+        "type": "integer"
       },
       "forms": [
         {
@@ -68,12 +77,14 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:adeunis_comfort2#temperature",
       "@type": "brick:Temperature_Sensor",
-      "knxDatapointType": "9.001",
+      "knx:datapointType": "knx:valueTemp",
       "data": {
         "type": "number",
         "unit": "Cel",
-        "readOnly": true
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
@@ -89,12 +100,14 @@
       ]
     },
     "humidity": {
+      "@id": "urn:dev:adeunis_comfort2#humidity",
       "@type": "brick:Relative_Humidity_Sensor",
-      "knxDatapointType": "9.007",
+      "knx:datapointType": "knx:valueHumidity",
       "data": {
         "type": "integer",
         "unit": "%RH",
-        "readOnly": true
+        "qudt:unit": "qunit:PERCENT_RH",
+        "qudt:hasQuantityKind": "quantitykind:RelativeHumidity"
       },
       "forms": [
         {
