@@ -3,10 +3,18 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:dragino:lht65n",
   "title": "dragino_lht65n",
   "description": "Dragino LHT65N temperature & humidity sensor. This TD models key fPort-aware uplinks from the official codec: fPort 2 extension/status telemetry (including retransmission/poll/extension status bits and basic battery/temperature/humidity extraction) and fPort 5 device-info telemetry. Unsupported advanced shapes (for example fPort 3 variable-length temperature arrays and extensionCode-specific alternate battery/DS-temperature sources) remain out of scope for this example.",
@@ -30,6 +38,11 @@
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "ports",
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:dragino:lht65n#temperature" },
+    { "@id": "urn:dev:dragino:lht65n#humidity" }
+  ],
   "events": {
     "retransmissionStatus": {
       "description": "fPort 2 retransmission status bit (byte 6, bit 7). Official branch of interest decodes sensor values when this is 0.",
@@ -92,7 +105,9 @@
       "description": "fPort 2 battery voltage (`BatV`) from bytes 0..1 (basic extraction path).",
       "data": {
         "type": "number",
-        "unit": "V"
+        "unit": "V",
+        "qudt:unit": "qunit:V",
+        "qudt:hasQuantityKind": "quantitykind:Voltage"
       },
       "forms": [
         {
@@ -109,10 +124,15 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:dragino:lht65n#temperature",
+      "@type": "brick:Temperature_Sensor",
+      "knx:datapointType": "knx:valueTemp",
       "description": "fPort 2 SHT temperature (`TempC_SHT`) from bytes 2..3.",
       "data": {
         "type": "number",
-        "unit": "Cel"
+        "unit": "Cel",
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
@@ -129,10 +149,15 @@
       ]
     },
     "humidity": {
+      "@id": "urn:dev:dragino:lht65n#humidity",
+      "@type": "brick:Relative_Humidity_Sensor",
+      "knx:datapointType": "knx:valueHumidity",
       "description": "fPort 2 humidity from bytes 4..5 (basic extraction path).",
       "data": {
         "type": "number",
-        "unit": "%RH"
+        "unit": "%RH",
+        "qudt:unit": "qunit:PERCENT_RH",
+        "qudt:hasQuantityKind": "quantitykind:RelativeHumidity"
       },
       "forms": [
         {

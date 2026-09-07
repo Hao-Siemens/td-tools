@@ -159,6 +159,11 @@ lorav:frequencyPlan a owl:DatatypeProperty ;
     rdfs:comment "LoRaWAN Network Server frequency plan identifier, e.g. 'EU_863_870_TTN'." ;
     rdfs:range xsd:string .
 
+lorav:defaultEventingFrequencyMinutes a owl:DatatypeProperty ;
+    rdfs:label "default eventing frequency (minutes)" ;
+    rdfs:comment "Expected interval in minutes between unprompted uplinks. A LoRaWAN device transmits on its own schedule, so without a declared cadence a subscriber cannot distinguish 'nothing to report' from 'stopped reporting'. TD core has no equivalent: its event affordances say what a notification carries, not how often one arrives." ;
+    rdfs:range xsd:decimal .
+
 # --- Withdrawn terms ---------------------------------------------------------
 #
 # A published vocabulary is a contract: deleting an IRI outright would leave

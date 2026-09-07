@@ -26,6 +26,28 @@ DEVICES_DIR = REPO_ROOT / "external" / "device-payload-schema" / "schemas" / "de
 OUTPUT_DIR = REPO_ROOT / "examples" / "devices"
 
 
+def _expected_output_path(rel_schema_path: str) -> Path:
+    """Return the generated TD path for a catalog-relative source schema path."""
+    return OUTPUT_DIR / Path(rel_schema_path).with_suffix(".td.json")
+
+
+def _prune_stale_outputs(current_rel_paths: set[str]) -> list[Path]:
+    """Delete generated TDs that no longer correspond to a supported schema."""
+    expected = {_expected_output_path(rel).resolve() for rel in current_rel_paths}
+    removed: list[Path] = []
+    for existing in OUTPUT_DIR.rglob("*.td.json"):
+        if existing.resolve() in expected:
+            continue
+        existing.unlink()
+        removed.append(existing)
+
+    for directory in sorted(OUTPUT_DIR.rglob("*"), reverse=True):
+        if directory.is_dir() and not any(directory.iterdir()):
+            directory.rmdir()
+
+    return removed
+
+
 def _skip_bucket(exc: UnsupportedSchemaError) -> str:
     """Return the coverage-report label for a skip.
 
@@ -66,23 +88,40 @@ def convert_catalog() -> tuple[dict[str, dict[str, Any]], dict[str, list[str]], 
 def generate() -> int:
     """Generate all supported device TDs; return the number written."""
     tds, skipped, scanned = convert_catalog()
+    if not tds:
+        # Pruning below would delete the whole catalog, and examples/devices/ is
+        # gitignored, so those files cannot be restored with git. Converting
+        # nothing at all is never a legitimate outcome: it means the submodule is
+        # missing or the converter is broken. Fail loudly instead of emptying the
+        # directory and reporting success.
+        raise SystemExit(
+            f"no device schema converted ({scanned} scanned under {DEVICES_DIR}); "
+            "refusing to prune the generated catalog, which is not recoverable "
+            "from git. Run `git submodule update --init --recursive` and check the "
+            "converter before regenerating."
+        )
+
     generated: list[Path] = []
+    removed = _prune_stale_outputs(set(tds))
 
     for rel, td in tds.items():
-        out_path = OUTPUT_DIR / Path(rel).with_suffix(".td.json")
+        out_path = _expected_output_path(rel)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(td, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         generated.append(out_path)
 
-    _report(scanned, generated, skipped)
+    _report(scanned, generated, skipped, removed)
     return len(generated)
 
 
-def _report(total: int, generated: list[Path], skipped: dict[str, list[str]]) -> None:
+def _report(
+    total: int, generated: list[Path], skipped: dict[str, list[str]], removed: list[Path]
+) -> None:
     """Print a human-readable coverage summary."""
     print(f"Device schemas scanned: {total}")
     print(f"Thing Descriptions generated: {len(generated)}")
     print(f"  written under: {OUTPUT_DIR.relative_to(REPO_ROOT)}")
+    print(f"Stale generated TDs removed: {len(removed)}")
     skipped_total = sum(len(v) for v in skipped.values())
     print(f"Skipped (unsupported subset): {skipped_total}")
     for reason in sorted(skipped, key=lambda r: -len(skipped[r])):

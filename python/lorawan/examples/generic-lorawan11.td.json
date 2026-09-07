@@ -3,10 +3,18 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:example:generic-lorawan11",
   "title": "generic_lorawan11_sensor",
   "description": "Generic LoRaWAN 1.1 sensor demonstrating OTAA with both AppKey and NwkKey (fixed binary uplink layout).",
@@ -39,12 +47,18 @@
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:example:generic-lorawan11#temperature" }
+  ],
   "events": {
     "battery": {
       "description": "Battery level as a percentage.",
       "data": {
         "type": "integer",
         "unit": "%",
+        "qudt:unit": "qunit:PERCENT",
+        "qudt:hasQuantityKind": "quantitykind:DimensionlessRatio",
         "minimum": 0,
         "maximum": 100
       },
@@ -61,9 +75,14 @@
       ]
     },
     "temperature": {
+      "@id": "urn:dev:example:generic-lorawan11#temperature",
+      "@type": "brick:Temperature_Sensor",
+      "knx:datapointType": "knx:valueTemp",
       "data": {
         "type": "number",
-        "unit": "Cel"
+        "unit": "Cel",
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {

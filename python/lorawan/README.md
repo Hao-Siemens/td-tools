@@ -225,6 +225,7 @@ it is *transferred*.
 | `lorav:macVersion` | LoRaWAN MAC version, e.g. `1.0.3`, `1.1.0` | no |
 | `lorav:region` | Regulatory region / profile (e.g. `EU868`) | no |
 | `lorav:frequencyPlan` | LNS frequency plan id (e.g. `EU_863_870_TTN`) | no |
+| `lorav:defaultEventingFrequencyMinutes` | Expected minutes between unprompted uplinks | no |
 | `lorav:payloadLayout` | Payload structure: `fixed`, `ports`, `tlv` or `ctv` | no |
 | `lorav:tagFields` | Tag field definitions for `tlv`/`ctv` layouts | no |
 | `AppKey` | OTAA root key — `apikey` scheme `name: "appKey"` | **yes (runtime)** |
@@ -520,11 +521,14 @@ The binding covers most common fixed/ports/TLV layouts, but these gaps remain:
 * **`bitfield_string` fields** — a field rendering packed bits as text has no
   form term and takes its device out of the catalog. Affects 36 Milesight
   schemas, which adopted the type in the current submodule pin.
-* **TLV variants outside `tag_fields` style** — `tag_size`/length-prefixed TLV
-  forms and some non-standard tag-key encodings are not converted.
+* **TLV variants outside the supported tag-key subset** — plain `tag_size`
+  TLV without a length prefix is converted, but length-prefixed TLV forms and
+  non-standard tag-key patterns (for example wildcard or negated tag parts) are
+  not.
 * **Match defaults** — explicit enumerated `match` cases are supported (including
-  top-level frame-byte dispatch), but wildcard/default branches and raw `skip`
-  entries inside a case are not.
+  top-level frame-byte dispatch, and `skip` padding between fields of a case,
+  which becomes `lorav:padBefore`), but wildcard/default branches and a case
+  ending in trailing `skip` padding are not.
 * **Alternate source branches** — when one output field switches to a different
   byte source under an extension/status flag (Dragino `Ext`-style), only the
   common path is modeled.

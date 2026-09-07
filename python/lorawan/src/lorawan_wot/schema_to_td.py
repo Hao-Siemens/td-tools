@@ -6,19 +6,22 @@ bootstrap Thing Descriptions from the reference device schemas shipped in the
 shapes the forward converter can faithfully round-trip:
 
 * ``plain``/fixed -- a flat ordered list of named fields (sequential offsets,
-  ``skip`` padding allowed).
-* single-field ``tlv`` -- a ``tag_fields`` block whose every case maps to exactly
-  one field (one WoT event per tag).
+  ``skip`` padding allowed), including ``byte_group`` bitfields, ``flagged``
+  groups and enumerated ``match`` cases.
+* ``ports`` -- one fixed layout per LoRaWAN frame port.
+* ``tlv`` -- a ``tag_fields`` block, or the plain ``tag_size`` style without a
+  length prefix; a case may carry several fields, ordered by ``lorav:slot``.
 
 Every decoded value becomes an *event*, not a property: a LoRaWAN device pushes
 uplinks on its own schedule and cannot be polled, so there is no value to read on
 demand. The wire encoding lands on the event's form and the meaning of the
 decoded value on its ``data`` schema.
 
-Anything outside that subset (``flagged`` groups, ``byte_group``, ``match``,
-multi-field ``tlv`` cases, computed ``ref``/``formula`` fields, ``tag_size`` style
-``tlv``, duplicate field names, ...) raises :class:`UnsupportedSchemaError` so a batch
-caller can skip it and report it, rather than emitting a lossy Thing Description.
+Anything outside that subset (``repeat``/object/array shapes, raw ``formula``
+expressions, ``bitfield_string`` fields, length-prefixed ``tlv``, ``match``
+default branches, duplicate field names, ...) raises
+:class:`UnsupportedSchemaError` so a batch caller can skip it and report it,
+rather than emitting a lossy Thing Description.
 """
 
 from __future__ import annotations

@@ -3,10 +3,18 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "lorav": "https://www.w3.org/2024/wot/lorawan#",
-      "schema": "https://schema.org/"
+      "schema": "https://schema.org/",
+      "brick": "https://brickschema.org/schema/Brick#",
+      "knx": "http://schema.knx.org/2020/ontology/knx#",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qunit": "http://qudt.org/vocab/unit/",
+      "quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "qudt:unit": { "@type": "@id" },
+      "qudt:hasQuantityKind": { "@type": "@id" },
+      "knx:datapointType": { "@type": "@id" }
     }
   ],
-  "@type": "Thing",
+  "@type": ["Thing", "brick:Sensor_Equipment"],
   "id": "urn:dev:mclimate:mc-button",
   "title": "mclimate_mc_button",
   "description": "MClimate Multipurpose Button LoRaWAN",
@@ -24,11 +32,16 @@
   "lorav:joinEUI": "0000000000000000",
   "lorav:macVersion": "1.0.3",
   "schema:manufacturer": "MClimate",
+  "schema:mpn": "MC Button",
   "schema:version": "1.0",
   "schema:softwareVersion": "1.0",
   "lorav:region": "EU868",
   "lorav:frequencyPlan": "EU_863_870",
   "lorav:payloadLayout": "fixed",
+  "lorav:defaultEventingFrequencyMinutes": 10,
+  "brick:hasPoint": [
+    { "@id": "urn:dev:mclimate:mc-button#sensorTemperature" }
+  ],
   "events": {
     "frameType": {
       "description": "Byte 0 frame discriminator. 1 indicates a keepalive frame in the official decoder.",
@@ -51,7 +64,9 @@
       "description": "Battery voltage in volts using direct raw scaling from byte 1: V=(byte*8+1600)/1000.",
       "data": {
         "type": "number",
-        "unit": "V"
+        "unit": "V",
+        "qudt:unit": "qunit:V",
+        "qudt:hasQuantityKind": "quantitykind:Voltage"
       },
       "forms": [
         {
@@ -96,10 +111,15 @@
       ]
     },
     "sensorTemperature": {
+      "@id": "urn:dev:mclimate:mc-button#sensorTemperature",
+      "@type": "brick:Temperature_Sensor",
+      "knx:datapointType": "knx:valueTemp",
       "description": "Thermistor temperature in Celsius from byte 3 using the official 0.1C scaling. ",
       "data": {
         "type": "number",
-        "unit": "Cel"
+        "unit": "Cel",
+        "qudt:unit": "qunit:DEG_C",
+        "qudt:hasQuantityKind": "quantitykind:Temperature"
       },
       "forms": [
         {
